@@ -121,7 +121,7 @@ Official K3s installation instructions:
 
 https://rancher.com/docs/k3s/latest/en/installation/kube-dashboard/
 
-I've not been managed to **access** the dashboard after installation.
+I've not been able to **access** the dashboard after installation.
 
 I was having errors like this:
 ```text
@@ -135,11 +135,6 @@ https://github.com/kubernetes/dashboard/blob/master/docs/user/accessing-dashboar
 I tested the solution mentioned at the end of the thread, but no luck:
 
 https://github.com/kubernetes-sigs/kubespray/issues/5347
-
-I was having errors like this:
-```text
-Error: 'dial tcp 192.168.1.2:8443: i/o timeout
-```
 
 No luck neither with this one:
 
