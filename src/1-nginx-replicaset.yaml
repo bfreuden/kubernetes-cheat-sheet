@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  labels:
+    run: nginx # all pods created with this replicaset will have this metadata
+  name: nginx-replicaset
+spec:
+  replicas: 2  # we want 2 replicas
+  selector:    # this replicaset manages pods based on this selection criteria
+    matchLabels:
+      run: nginx   # pods must have a run label with nginx value
+  template:    # tells how to create the pods
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      containers:
+        - image: nginx
+          name: nginx
