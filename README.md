@@ -1005,4 +1005,266 @@ kubectl delete pod nginx
 kuc kubernetes-admin@cluster.local
 kubectl delete pod nginx
 ```
+## Node Selectors
+
+https://www.youtube.com/watch?v=TFAASAfO_gg
+
+You can attach labels to nodes. This can be useful if you want to schedule deployments
+on nodes having certain attributes (fast disks, GPU, etc...).
+
+```bash
+kubectl label node node2 demoserver=true
+kubectl get nodes node2 --show-labels
+```
+And we can see the label in the output of the second command:
+```text
+NAME    STATUS   ROLES    AGE    VERSION   LABELS
+node2   Ready    master   3d3h   v1.17.5   beta.kubernetes.io/arch=amd64,beta.kubernetes.io/os=linux,demoserver=true,kubernetes.io/arch=amd64,kubernetes.io/hostname=node2,kubernetes.io/os=linux,node-role.kubernetes.io/master=
+```
+Now let's create a ``1-nginx-deployment-nodeselector.yaml`` deployment file:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: nginx
+  name: nginx-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: nginx
+  template:
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      containers:
+        - image: nginx
+          name: nginx
+      nodeSelector:         # the node selector...
+        demoserver: "true"  # ... will select nodes with the demoserver=true label
+```
+We can see in the output (watch...) that the pod has been scheduled on node2:
+```text
+NAME                                READY   STATUS    RESTARTS   AGE    IP            NODE    NOMINATED NODE   READINESS GATES
+pod/nginx-deploy-5f7fbc9dd8-b6hg2   1/1     Running   0          114s   10.233.96.4   node2   <none>           <none>
+
+NAME                           READY   UP-TO-DATE   AVAILABLE   AGE    CONTAINERS   IMAGES   SELECTOR
+deployment.apps/nginx-deploy   1/1     1            1           114s   nginx        nginx    run=nginx
+
+NAME                                      DESIRED   CURRENT   READY   AGE    CONTAINERS   IMAGES   SELECTOR
+replicaset.apps/nginx-deploy-5f7fbc9dd8   1         1         1       114s   nginx        nginx    pod-template-hash=5f7fbc9dd8,run=nginx
+```
+
+You can see the node selector we describing the pod:
+```bash
+kubectl describe pod nginx-deploy-5f7fbc9dd8-b6hg2  | grep Selector
+```
+```text
+Node-Selectors:  demoserver=true
+```
+And if you scale the deployment:
+```bash
+kubectl scale deployment nginx-deploy --replicas=2
+```
+The new pod has also been scheduled on node2 (otherwise another node would have been preferred):
+```text
+NAME                                READY   STATUS    RESTARTS   AGE    IP            NODE    NOMINATED NODE   READINESS GATES
+pod/nginx-deploy-5f7fbc9dd8-b6hg2   1/1     Running   0          6m8s   10.233.96.4   node2   <none>           <none>
+pod/nginx-deploy-5f7fbc9dd8-qxn2p   1/1     Running   0          65s    10.233.96.5   node2   <none>           <none>
+```
+Clean-up:
+```bash
+kubectl delete deploy nginx-deploy
+```
+To remove the label on the node:
+```bash
+kubectl label node node2 demoserver-
+```
+
+## PodNodeSelector Admission Control Plugin
+
+https://www.youtube.com/watch?v=j3ft8k0HC8s
+
+Offficial documentation:
+
+https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/
+
+It can happen that you want to make sure pods created in a given namespace are scheduled
+on given nodes. For instance ``prod`` namespace should be associated to powerful node, 
+and the ``dev`` namespace should be associated to regular nodes. 
+
+The PodNodeSelector plugin will let you edit the namespace, instead of setting a node
+selector on each pod.
+
+Let's first label the nodes:
+```bash
+kubectl label node node1 env=dev
+kubectl label node node2 env=prod
+```
+
+Now let's ssh on master machine(s) and edit the :
+```bash
+ssh user@node1
+sudo vi /etc/kubernetes/manifests/kube-scheduler.yaml
+```
+Add ``,PodNodeSelector`` to the ``--enable-admission-plugins`` line:
+```yaml
+- --enable-admission-plugins=NodeRestriction,PodNodeSelector
+```
+Save the file and the kubernetes API will restart automatically. 
+
+Logout from ssh.
+
+Now let's create namespaces:
+```yaml
+kubectl create ns dev
+kubectl create ns prod
+```
+And edit them (this will open a vi editor):
+```bash
+kubectl edit ns dev
+```
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  creationTimestamp: "2020-04-21T18:33:29Z"
+  name: dev
+  annotations:  # add this line and the following
+    scheduler.alpha.kubernetes.io/node-selector: "env=dev"
+  resourceVersion: "161399"
+  selfLink: /api/v1/namespaces/dev
+  uid: 8501e7ba-1183-4169-890b-ab13990e5d3b
+spec:
+  finalizers:
+  - kubernetes
+status:
+  phase: Active
+```
+And to the same for prod.
+
+Now run some nginx in the dev namespace:
+```bash
+kubectl -n dev create -f 1-nginx-deployment.yaml 
+```
+We can see that both pods are created on node1 (labelled with env=dev)
+```text
+NAME                                READY   STATUS    RESTARTS   AGE   IP             NODE    NOMINATED NODE   READINESS GATES
+pod/nginx-deploy-6db489d4b7-2jqq2   1/1     Running   0          58s   10.233.90.33   node1   <none>           <none>
+pod/nginx-deploy-6db489d4b7-6kzft   1/1     Running   0          58s   10.233.90.34   node1   <none>           <none>
+```
+And if you describe the pod you see that a Node selector has automatically been added:
+```bash
+kubectl -n dev describe pod nginx-deploy-6db489d4b7-6kzft | grep Selector
+```
+```text
+Node-Selectors:  env=dev
+```
+If we deploy on the prod namespace, pods will go on node2.
+
+Cleanup:
+```bash
+kubectl -n dev delete -f 1-nginx-deployment.yaml
+```
+
+## DaemonSets
+
+https://youtu.be/PWBpy4IlfMQ?t=62
+
+A daemonset is a pod that will be deployed on each node of the cluster. You can target specific nodes using labels.
+
+Let's create a ``1-nginx-daemonset.yaml``:
+```yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nginx-daemonset
+spec:
+  selector:      # containers will be grouped by this label
+    matchLabels:
+      demotype: nginx-daemonset-demo
+  template:
+    metadata:
+      labels:    # in the template you're setting the label
+        demotype: nginx-daemonset-demo
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+```
+Then create the daemonset:
+```bash
+kubectl create -f 1-nginx-daemonset.yaml
+```
+And you can observe (watch...):
+```text
+NAME                        READY   STATUS    RESTARTS   AGE   IP             NODE    NOMINATED NODE   READINESS GATES
+pod/nginx-daemonset-gcg7b   1/1     Running   0          34s   10.233.92.21   node3   <none>           <none>
+pod/nginx-daemonset-gndmq   1/1     Running   0          34s   10.233.96.8    node2   <none>           <none>
+pod/nginx-daemonset-zn7nl   1/1     Running   0          34s   10.233.90.35   node1   <none>           <none>
+```
+If we describe the daemonset, we can see how it is targetting pods:
+```bash
+kubectl describe daemonsets nginx-daemonset | grep Selector
+```
+```text
+Selector:       demotype=nginx-daemonset-demo
+```
+If we describe the pod we can see it is controlled by the daemonset:
+```bash
+kubectl describe pod nginx-daemonset-gcg7b | grep Control
+```
+```text
+Controlled By:  DaemonSet/nginx-daemonset
+```
+Like replicasets, if you kill a pod it will be recreated automatically.
+
+Cleanup:
+```bash
+kubectl delete -f 1-nginx-daemonset.yaml
+```
+There exists some daemonsets by default:
+```bash
+kubectl -n kube-system get daemonsets
+```
+```text
+NAME           DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR                                        AGE
+calico-node    3         3         3       3            3           <none>                                               3d4h
+kube-proxy     3         3         3       3            3           beta.kubernetes.io/os=linux,kubernetes.io/os=linux   3d5h
+nodelocaldns   3         3         3       3            3           <none>                                               3d4h
+```
+For instance calico takes care of the network.
+
+You can target nodes:
+```yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nginx-daemonset-dev
+spec:
+  selector:      
+    matchLabels:
+      demotype: nginx-daemonset-demo-dev
+  template:
+    metadata:
+      labels:   
+        demotype: nginx-daemonset-demo-dev
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+      nodeSelector:  # you can use a node selector that will match node labels
+        env: dev
+```
+If we describe this daemonset we can see the node selector:
+```text
+NAME                                 DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE   CONTAINERS   IMAGES   SELECTOR
+daemonset.apps/nginx-daemonset-dev   1         1         0       1            0           env=dev         3s    nginx        nginx    demotype=nginx-daemonset-demo-dev
+```
+
+## Jobs and cronjobs
+
+https://youtu.be/uJKE0d6Y_yg?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0&t=172
 

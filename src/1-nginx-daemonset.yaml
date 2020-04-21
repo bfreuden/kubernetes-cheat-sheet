@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nginx-daemonset
+spec:
+  selector:      # containers will be grouped by this label
+    matchLabels:
+      demotype: nginx-daemonset-demo
+  template:
+    metadata:
+      labels:    # in the template you're setting the label
+        demotype: nginx-daemonset-demo
+    spec:
+      containers:
+        - image: nginx
+          name: nginx
