@@ -1574,6 +1574,8 @@ kubectl delete cronjob helloworld-cron
 
 ## TTL Controller for Finished Resources 
 
+https://www.youtube.com/watch?v=g0dmgd27DRg
+
 Ssh on master machine(s) and edit:
 ```bash
 ssh user@node1
@@ -1619,3 +1621,102 @@ spec:
           command: ["echo", "Hello Kubernetes!!!"]
       restartPolicy: Never
 ```
+
+## Init containers
+
+https://www.youtube.com/watch?v=J4S_MfsCPHo
+
+Pods can contain multiple containers. 
+
+Init containers are special: 
+* they will be started before any other container in the pod
+* they must terminate
+* once they terminate the other containers will be started
+* if an init container fails, the other containers won't be started
+
+Warning: in case of init container failure, Kubernetes will retry infinitely?
+
+It can be useful, for instance, to checkout the source code of a web application in a volumen
+that is shared between the init container and a web application container.
+
+Let's write the ``3-init-container.yaml`` file:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: nginx
+  name: nginx-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: nginx
+  template:
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      volumes:                # we need a volume
+      - name: shared-volume   # called shared-volume
+        emptyDir: {}          # emptyDir: will be removed auto when pod is terminated
+      initContainers:         # this is an init container
+      - name: busybox         # it will create a index.html file for nginx
+        image: busybox
+        volumeMounts:            # volumes mounted into the init container
+        - name: shared-volume    # name of the volume (declared above)
+          mountPath: /nginx-data # where it will be mounted
+        command: ["/bin/sh"]
+        args: ["-c", "echo '<h1>Hello Kubernetes</h1>' > /nginx-data/index.html"]
+      containers:             # this container will started after busybox
+      - image: nginx          # it's an nginx container serving the index.html
+        name: nginx
+        volumeMounts:         # volumes mounted into the init container
+        - name: shared-volume
+          mountPath: /usr/share/nginx/html
+```
+
+Then deploy:
+
+```bash
+kubectl create -f 3-init-container.yaml 
+```
+In the output we can see the ``PodInitializing`` status (watch...)
+```text
+NAME                               READY   STATUS            RESTARTS   AGE   IP             NODE    NOMINATED NODE   READINESS GATES
+pod/nginx-deploy-5bbff4698-xs8t5   0/1     PodInitializing   0          5s    10.233.92.54   node3   <none>           <none>
+
+NAME                           READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS   IMAGES   SELECTOR
+deployment.apps/nginx-deploy   0/1     1            0           5s    nginx        nginx    run=nginx
+
+NAME                                     DESIRED   CURRENT   READY   AGE   CONTAINERS   IMAGES   SELECTOR
+replicaset.apps/nginx-deploy-5bbff4698   1         1         0       5s    nginx        nginx    pod-template-hash=5bbff4698,run=nginx
+```
+The emptyDir volume is created here (it is not a docker volume):
+```text
+/var/lib/kubelet/pods/1ae7c5ce-7b60-4c75-abb5-e7c001d07e46/volumes/kubernetes.io~empty-dir/shared-volume/index.html
+```
+
+Now let's expose the service:
+```bash
+kubectl expose deployment nginx-deploy --type NodePort --port 80
+port=$(kubectl describe service nginx-deploy | grep NodePort | grep -o -E "[0-9]+")
+curl node1:$port
+```
+```text
+<h1>Hello Kubernetes</h1>
+```
+
+If you scale the deployment, the init container will run once again:
+```bash
+kubectl scale deployment nginx-deploy --replicas=2
+```
+Cleanup:
+```bash
+kubectl delete -f 3-init-container.yaml 
+```
+
+## Persistent volumes and claims
+
+https://www.youtube.com/watch?v=I9GMUn15Nes
+
