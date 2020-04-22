@@ -1266,5 +1266,356 @@ daemonset.apps/nginx-daemonset-dev   1         1         0       1            0 
 
 ## Jobs and cronjobs
 
-https://youtu.be/uJKE0d6Y_yg?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0&t=172
+https://youtu.be/uJKE0d6Y_yg?t=172
 
+### Jobs
+A job is a pod containing an executable that will terminate at some point.
+
+Let's write a ``2-job.yaml`` job file:
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: helloworld
+spec:
+  template:
+    spec:
+      containers:
+        - name: busybox
+          image: busybox
+          command: ["echo", "Hello Kubernetes!!!"]
+      restartPolicy: Never
+```
+And launch it:
+```bash
+kubectl create -f 2-job.yaml
+```
+Once the job is complete, we can observe (watch...):
+```text
+NAME                   READY   STATUS      RESTARTS   AGE   IP             NODE    NOMINATED NODE   READINESS GATES
+pod/helloworld-xxkl9   0/1     Completed   0          33s   10.233.92.23   node3   <none>           <none>
+
+NAME                   COMPLETIONS   DURATION   AGE   CONTAINERS   IMAGES    SELECTOR
+job.batch/helloworld   1/1           4s         33s   busybox      busybox   controller-uid=3eedffe4-ef98-4f30-aa01-743bc0b5769d
+```
+Now take a look at the logs of the pod:
+```bash
+kubectl logs helloworld-xxkl9
+```
+```text
+Hello Kubernetes!!!
+```
+You can have the status, start date, termination date and duration of a job:
+```bash
+kubectl describe job helloworld | head -n11
+```
+```text
+Name:           helloworld
+Namespace:      default
+Selector:       controller-uid=3eedffe4-ef98-4f30-aa01-743bc0b5769d
+Labels:         controller-uid=3eedffe4-ef98-4f30-aa01-743bc0b5769d
+                job-name=helloworld
+Annotations:    <none>
+Parallelism:    1
+Completions:    1
+Start Time:     Wed, 22 Apr 2020 19:36:29 +0200
+Completed At:   Wed, 22 Apr 2020 19:36:33 +0200
+Duration:       4s
+```
+You have to delete jobs manually:
+```bash
+kubectl delete job helloworld
+```
+In order to automatically cleanup terminated job pods, you can activate the *TTL Controller for Finished Resources* (see chapter below):
+
+https://kubernetes.io/docs/concepts/workloads/controllers/ttlafterfinished/
+ 
+Now let's modify the job so it will run longer:
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: helloworld
+spec:
+  template:
+    spec:
+      containers:
+        - name: busybox
+          image: busybox
+          command: ["sleep", "60"]
+      restartPolicy: Never
+```
+If you run this job and kill the ``helloworld-4xzsx`` pod it has created, then another
+pod is automatically restarted:
+```text
+NAME                   READY   STATUS              RESTARTS   AGE   IP             NODE    NOMINATED NODE   READINESS GATES
+pod/helloworld-4xzsx   1/1     Terminating         0          20s   10.233.92.24   node3   <none>           <none>
+pod/helloworld-dbd9z   0/1     ContainerCreating   0          6s    <none>         node3   <none>           <none>
+
+NAME                   COMPLETIONS   DURATION   AGE   CONTAINERS   IMAGES    SELECTOR
+job.batch/helloworld   0/1           20s        20s   busybox      busybox   controller-uid=3084e669-7a72-432a-b8c4-32c4661fe2fa
+```
+That's because Kubernetes will restart the pod until there is a 0 exit code.
+
+If you want a job to be run twice:
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: helloworld
+spec:
+  completions: 2  # run the job twice
+  template:
+    spec:
+      containers:
+        - name: busybox
+          image: busybox
+          command: ["echo", "Hello Kubernetes!!!"]
+      restartPolicy: Never
+```
+It will launch a pod, wait for it to terminate, then launch another pod:
+```text
+
+NAME                   READY   STATUS              RESTARTS   AGE   IP             NODE    NOMINATED NODE   READINESS GATES
+pod/helloworld-h8m2l   0/1     ContainerCreating   0          5s    <none>         node3   <none>           <none>
+pod/helloworld-nrdcz   0/1     Completed           0          9s    10.233.92.27   node3   <none>           <none>
+
+NAME                   COMPLETIONS   DURATION   AGE   CONTAINERS   IMAGES    SELECTOR
+job.batch/helloworld   1/2           9s         9s    busybox      busybox   controller-uid=2deaf673-23a8-4b28-9ad0-e4b7df4
+```
+You can have a report:
+```bash
+kubectl describe job helloworld  | head -n12 | tail -n6
+```
+```text
+Parallelism:    1
+Completions:    2
+Start Time:     Wed, 22 Apr 2020 19:53:35 +0200
+Completed At:   Wed, 22 Apr 2020 19:53:44 +0200
+Duration:       9s
+Pods Statuses:  0 Running / 2 Succeeded / 0 Failed
+```
+
+If you want a job to be run twice in parallel:
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: helloworld
+spec:
+  completions: 2  # run the job twice...
+  parallelism: 2  # ... in parallel
+  template:
+    spec:
+      containers:
+        - name: busybox
+          image: busybox
+          command: ["echo", "Hello Kubernetes!!!"]
+      restartPolicy: Never
+```
+
+Let's write a job that will fail:
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: helloworld
+spec:
+  template:
+    spec:
+      containers:
+        - name: busybox
+          image: busybox
+          command: ["ls", "/foobar"] # will fail
+      restartPolicy: Never
+```
+If you create that one it will keep on creating pods because the exit code will never be 0!
+So you have to specify a limit:
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: helloworld
+spec:
+  backoffLimit: 3  # it won't fail more than 3 times (so you wont
+  template:
+    spec:
+      containers:
+        - name: busybox
+          image: busybox
+          command: ["ls", "/foobar"] # will fail
+      restartPolicy: Never
+```
+And if you describe the job:
+```bash
+kubectl describe job helloworld  | tail -n1
+```
+```text
+  Warning  BackoffLimitExceeded  2m41s  job-controller  Job has reached the specified backoff limit
+```
+You can specify a timeout for a job:
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: helloworld
+spec:
+  activeDeadlineSeconds: 5  # terminate the pod if running more than 5 seconds
+  template:
+    spec:
+      containers:
+        - name: busybox
+          image: busybox
+          command: ["sleep", "60"]
+      restartPolicy: Never
+```
+And if you describe the job:
+```bash
+kubectl describe job helloworld  | tail -n1
+```
+```text
+  Warning  DeadlineExceeded  14s   job-controller  Job was active longer than specified deadline
+```
+### Cronjobs
+
+It is a kubernetes job having a cron schedule:
+
+```yaml
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: helloworld-cron
+spec:
+  schedule: "* * * * *" # run every minute
+  jobTemplate:          # the job to be run
+    spec:
+      template:
+        spec:
+          containers:
+            - name: busybox
+              image: busybox
+              command: ["echo", "Hello Kubernetes!!!"]
+          restartPolicy: Never
+```
+
+By default it will hold the last 3 jobs (here after 2 minutes or so) and the last failed job:
+```text
+NAME                                   READY   STATUS      RESTARTS   AGE   IP             NODE    NOMINATED NODE   READINESS GATES
+pod/helloworld-cron-1587579540-chr4b   0/1     Completed   0          90s   10.233.92.40   node3   <none>           <none>
+pod/helloworld-cron-1587579600-5rg66   0/1     Completed   0          30s   10.233.92.41   node3   <none>           <none>
+
+NAME                                   COMPLETIONS   DURATION   AGE   CONTAINERS   IMAGES    SELECTOR
+job.batch/helloworld-cron-1587579540   1/1           9s         90s   busybox      busybox   controller-uid=f3c0516c-ed5a-47d9-b044-892f53902795
+job.batch/helloworld-cron-1587579600   1/1           8s         30s   busybox      busybox   controller-uid=b0c1225f-a3ec-453f-9c86-0046a9513e67
+
+NAME                            SCHEDULE    SUSPEND   ACTIVE   LAST SCHEDULE   AGE     CONTAINERS   IMAGES    SELECTOR
+cronjob.batch/helloworld-cron   * * * * *   False     0        38s             2m29s   busybox      busybox   <none>
+```
+
+Delete the cronjob:
+```bash
+kubectl delete cronjobs helloworld-cron
+```
+
+To specify the number of successful/failed jobs to be retained:
+```yaml
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: helloworld-cron
+spec:
+  schedule: "* * * * *" 
+  successfulJobsHistoryLimit: 0  # 3 by default
+  failedJobsHistoryLimit: 0  # 3 by default
+  jobTemplate:          
+    spec:
+      template:
+        spec:
+          containers:
+            - name: busybox
+              image: busybox
+              command: ["echo", "Hello Kubernetes!!!"]
+          restartPolicy: Never
+```
+
+Now let's admit you want to suspend the cron job:
+```yaml
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: helloworld-cron
+spec:
+  schedule: "* * * * *" 
+  successfulJobsHistoryLimit: 0  
+  failedJobsHistoryLimit: 0  
+  suspend: true                # suspend the job
+  jobTemplate:          
+    spec:
+      template:
+        spec:
+          containers:
+            - name: busybox
+              image: busybox
+              command: ["echo", "Hello Kubernetes!!!"]
+          restartPolicy: Never
+```
+Let's do it with the ``apply`` command:
+```bash
+kubectl apply -f 2-cronjobs.yaml
+```
+Now let's resume the job using the ``patch`` command:
+```bash
+kubectl patch cronjob helloworld-cron -p '{"spec":{"suspend":false}}'
+```
+Cleanup:
+```bash
+kubectl delete cronjob helloworld-cron
+```
+
+## TTL Controller for Finished Resources 
+
+Ssh on master machine(s) and edit:
+```bash
+ssh user@node1
+sudo vi /etc/kubernetes/manifests/kube-apiserver.yaml
+```
+Add a ``--feature-gates=TTLAfterFinished`` option to the ``kube-apiserver``:
+```yaml
+  containers:
+  - command:
+    - kube-apiserver
+    - --feature-gates=TTLAfterFinished=true
+etc...
+```
+Save the file and the kubernetes API will restart automatically, then edit: 
+```bash
+sudo vi /etc/kubernetes/manifests/kube-controller-manager.yaml
+```
+Add a ``--feature-gates=TTLAfterFinished`` option to the ``kube-controller-manager``:
+```yaml
+  containers:
+  - command:
+    - kube-controller-manager
+    - --feature-gates=TTLAfterFinished=true
+etc...
+```
+Save the file and the kubernetes controller manager will restart automatically. 
+
+Exit ssh.
+
+Then you can use a new ``ttlSecondsAfterFinished`` job spec option:
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: helloworld
+spec:
+  ttlSecondsAfterFinished: 20   # the pod will pod auto-removed 20 seconds after job completion
+  template:
+    spec:
+      containers:
+        - name: busybox
+          image: busybox
+          command: ["echo", "Hello Kubernetes!!!"]
+      restartPolicy: Never
+```

@@ -1,0 +1,13 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: helloworld
+spec:
+  activeDeadlineSeconds: 5
+  template:
+    spec:
+      containers:
+        - name: busybox
+          image: busybox
+          command: ["sleep", "60"]
+      restartPolicy: Never
