@@ -5,9 +5,55 @@ Official documentation:
 
 https://kubernetes.io/fr/docs/home/
 
-A huge YouTube Kubernetes playlist:
+A huge YouTube Kubernetes playlist and a huge **thank you** to the author (this cheat sheet is based on this great content):
 
 https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
+
+
+
+
+- [Kubectl](#kubectl)
+  * [Installation](#installation)
+  * [Setup bash completion](#setup-bash-completion)
+- [Minikube](#minikube)
+- [K8s with vagrant](#k8s-with-vagrant)
+- [K3s](#k3s)
+  * [Installation](#installation-1)
+    + [Server node](#server-node)
+    + [Agent node](#agent-node)
+    + [Add to kubectl config](#add-to-kubectl-config)
+    + [Kubernetes dashboard](#kubernetes-dashboard)
+  * [Uninstall](#uninstall)
+    + [Kubernetes dashboard](#kubernetes-dashboard-1)
+    + [Agent node](#agent-node-1)
+    + [Server node](#server-node-1)
+- [K8s](#k8s)
+  * [Install with kubespray](#install-with-kubespray)
+  * [Add to kubectl config](#add-to-kubectl-config-1)
+  * [First connection](#first-connection)
+  * [Kubernetes Dashboard](#kubernetes-dashboard)
+- [Learn Kubernetes](#learn-kubernetes)
+  * [Running docker containers](#running-docker-containers)
+  * [Pod, replicaset and deployment](#pod--replicaset-and-deployment)
+    + [Pod](#pod)
+    + [Replicaset](#replicaset)
+    + [Deployment](#deployment)
+  * [Namespaces](#namespaces)
+  * [Node Selectors](#node-selectors)
+  * [PodNodeSelector Admission Control Plugin](#podnodeselector-admission-control-plugin)
+  * [DaemonSets](#daemonsets)
+  * [Jobs and cronjobs](#jobs-and-cronjobs)
+    + [Jobs](#jobs)
+    + [Cronjobs](#cronjobs)
+  * [TTL Controller for Finished Resources](#ttl-controller-for-finished-resources)
+  * [Init containers](#init-containers)
+  * [Persistent volumes and claims](#persistent-volumes-and-claims)
+    + [HostPath](#hostpath)
+    + [NFS](#nfs)
+  * [Secrets](#secrets)
+  * [Create a Secret based on existing Docker credentials](#create-a-secret-based-on-existing-docker-credentials)
+
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
 # Kubectl
 
@@ -121,6 +167,9 @@ more /etc/rancher/k3s/k3s.yaml
 
 It will show the admin username, admin password and certificate authority data of the cluster.
 
+**Warning**: this is a better way to do this, described in the [Add to kubectl config](#add-to-kubectl-config) paragraph.
+But the procedure below is working fine.
+
 Then on you laptop you can run (replace **server** and **password**):
 ```bash
 kubectl config set-cluster k3s --server=https://server:6443
@@ -129,7 +178,7 @@ kubectl config set-context k3s  --cluster=k3s --user=k3s-admin
 kubectl config use-context k3s
 ```
 
-Finally manually add certificate-authority-data (there must be a better way to do it) in the k3s cluster section of .kube/config
+Finally manually add certificate-authority-data in the k3s cluster section of .kube/config
 ```yaml
 - cluster:
     server: https://vision:6443
@@ -144,36 +193,9 @@ kubectl config use-context k3s
 
 ### Kubernetes dashboard
 
-Official page of the Kubernetes dashboard:
+TODO 
 
-https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
-
-Official K3s installation instructions:
-
-https://rancher.com/docs/k3s/latest/en/installation/kube-dashboard/
-
-I've not been able to **access** the dashboard after installation.
-
-I was having errors like this:
-```text
-Error: 'dial tcp 192.168.1.2:8443: i/o timeout
-```
-
-There are many ways to access it but I've not been able to find the magic formula:
-
-https://github.com/kubernetes/dashboard/blob/master/docs/user/accessing-dashboard/1.7.x-and-above.md
-
-I tested the solution mentioned at the end of the thread, but no luck:
-
-https://github.com/kubernetes-sigs/kubespray/issues/5347
-
-No luck neither with this one:
-
-https://www.thegeekdiary.com/how-to-access-kubernetes-dashboard-externally/
-
-Pretty detailed information about getting started with the dashboard (not tested):
-
-https://www.youtube.com/watch?v=brqAMyayjrI
+See dashboard install procedure for K8s below, maybe it's working too.
 
 ## Uninstall
 
@@ -2074,6 +2096,8 @@ https://youtu.be/ch9YlQZ4xTc?t=114
 
 Secrets are useful for instance to store the username and password of you Mysql database so 
 they can be used by pods.
+You can store ssh keys, ssl certificates, etc...
+
 First encode username and password in base64:
 ```bash
 echo -n "kubeadmin" | base64
