@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox
+spec:
+  containers:
+    - image: busybox
+      name: busybox
+      command: ["/bin/sh"]
+      args: ["-c", "sleep 600"]
+      env:
+        - name: CHANNELNAME           # define CHANNELNAME env variable...
+          valueFrom:                  # from...
+            configMapKeyRef:          # configmap...
+              name: demo-configmap    # called demo-configmap...
+              key: channel.name       # and its channel.name key
+        - name: CHANNELOWNER
+          valueFrom:
+            configMapKeyRef:
+              name: demo-configmap
+              key: channel.owner

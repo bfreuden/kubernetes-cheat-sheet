@@ -5,7 +5,7 @@ Official documentation:
 
 https://kubernetes.io/fr/docs/home/
 
-A huge YouTube Kubernetes playlist and a huge **thank you** to the author (this cheat sheet is based on this great content):
+A huge YouTube Kubernetes playlist and a huge **thank you** to Venkat Nagappan, the author of the playlist (this cheat sheet is based on this great content):
 
 https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
 
@@ -109,6 +109,22 @@ Official Minikube install:
 
 https://kubernetes.io/fr/docs/tasks/tools/install-minikube/
 
+
+# Microk8s
+
+TODO
+
+Official documentation:
+
+https://microk8s.io/docs/
+
+Described as *The smallest, fastest, fully-conformant Kubernetes that tracks upstream releases and makes clustering trivial.*
+
+Installation (not tested) looks easy:
+
+```bash
+sudo snap install microk8s --classic --channel=1.18/stable
+```
 
 # K8s with vagrant
 
@@ -2256,4 +2272,185 @@ spec:
       image: yourorganisation/yourapp:latest
   imagePullSecrets:
     - name: dockerhub
+```
+
+## Config maps
+
+config maps let you define variables that you can use in your pods.
+
+It looks pretty much like secrets (see above).
+
+List config maps:
+```bash
+kubectl get configmaps 
+kubectl get cm 
+```
+Let's create our first config map using the ``6-configmap-1.yaml`` file:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: demo-configmap
+data:
+  channel.name: "justmeandopensource"
+  channel.owner: "Venkat Nagappan"
+```
+```bash
+kubectl create -f 6-configmap-1.yaml 
+```
+Or you can create them using command-line:
+```bash
+kubectl create configmap demo-configmap-1 --from-literal=channel.name=justme --from-literal=channel.owner=me
+```
+
+Then you can create a pod using the config map ``6-pod-configmap-env.yaml``:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox
+spec:
+  containers:
+  - image: busybox
+    name: busybox
+    command: ["/bin/sh"]
+    args: ["-c", "sleep 600"]
+    env:
+    - name: CHANNELNAME           # define CHANNELNAME env variable...
+      valueFrom:                  # from...
+        configMapKeyRef:          # configmap...
+          name: demo-configmap    # called demo-configmap...
+          key: channel.name       # and its channel.name key
+    - name: CHANNELOWNER
+      valueFrom:
+        configMapKeyRef:
+          name: demo-configmap
+          key: channel.owner
+```
+```bash
+kubectl create -f 6-pod-configmap-env.yaml
+```
+
+Then display the CHANNELNAME:
+```bash
+kubectl exec busybox -- sh -c "echo \$CHANNELNAME"
+```
+```text
+justmeandopensource
+```
+
+```bash
+kubectl delete pod busybox
+```
+
+You can also mount config maps as volumes ``6-pod-configmap-volume.yaml``:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox
+spec:
+  volumes:                     # container needs a volume
+  - name: demo                 # any name
+    configMap:                 # created from a config map
+      name: demo-configmap     # called demo-configmap
+  containers:
+  - image: busybox
+    name: busybox
+    command: ["/bin/sh"]
+    args: ["-c", "sleep 600"]
+    volumeMounts:              # mount the volume
+    - name: demo               # "any name"
+      mountPath: /mydata       # here
+```
+```bash
+kubectl create -f 6-pod-configmap-volume.yaml 
+```
+Then it will create one file per variable:
+```bash
+kubectl exec busybox -- sh -c "ls /mydata"
+```
+```text
+channel.name
+channel.owner
+```
+Like secrets, if you update a configmap, files will be updated in the pod almost in realtime.
+
+You can put files in a config map, for instance this ``my.cnf`` conf file:
+```ini
+[mysqld]
+pid-file	= /var/run/mysqld/mysqld.pid
+socket		= /var/run/mysqld/mysqld.sock
+port		= 9999
+datadir		= /var/lib/mysql
+default-storage-engine = InnoDB
+character-set-server = utf8
+bind-address		= 127.0.0.1
+general_log_file        = /var/log/mysql/mysql.log
+log_error = /var/log/mysql/error.log
+```
+```bash
+kubectl create cm mysql-demo-config --from-file=my.cnf
+```
+You can also create it using this ``6-configmap-2.yaml`` file (although it's weird):
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-demo-config
+data:
+  my.cnf: |  # the pipe sign allows for multi-line string
+    [mysqld]
+    pid-file        = /var/run/mysqld/mysqld.pid
+    socket          = /var/run/mysqld/mysqld.sock
+    port            = 3306
+    datadir         = /var/lib/mysql
+    default-storage-engine = InnoDB
+    character-set-server = utf8
+    bind-address            = 127.0.0.1
+    general_log_file        = /var/log/mysql/mysql.log
+    log_error = /var/log/mysql/error.log
+```
+
+Then you can create pod using the ``6-pod-configmap-mysql-volume.yaml`` file:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox
+spec:
+  volumes:                     # container needs a volume
+  - name: mysql-config         # any name
+    configMap:                 # created from a configmap
+      name: mysql-demo-config  # called mysql-demo-config 
+      items:
+        - key: my.cnf          # by saving the value of the my.cnf key
+          path: my.cnf         # as this filename
+  containers:
+  - image: busybox
+    name: busybox
+    command: ["/bin/sh"]
+    args: ["-c", "sleep 600"]
+    volumeMounts:              # mount the volume
+    - name: mysql-config       # "any name"
+      mountPath: /mydata       # here (and files will be created here)
+```
+```bash
+kubectl create -f 6-pod-configmap-mysql-volume.yaml
+```
+
+Then:
+```bash
+kubectl exec busybox -- sh -c "cat /mydata/my.cnf"
+```
+```text
+[mysqld]
+pid-file	= /var/run/mysqld/mysqld.pid
+socket		= /var/run/mysqld/mysqld.sock
+etc...
+```
+
+Cleanup:
+```bash
+kubectl delete pod busybox
 ```
