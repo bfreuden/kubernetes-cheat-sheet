@@ -2067,3 +2067,169 @@ curl localhost:8080
 <h1>Hello from Kubernetes!</h1>
 ```
 There are all working and reading their ``index.html`` file from the NFS share.
+
+## Secrets
+
+https://youtu.be/ch9YlQZ4xTc?t=114
+
+Secrets are useful for instance to store the username and password of you Mysql database so 
+they can be used by pods.
+First encode username and password in base64:
+```bash
+echo -n "kubeadmin" | base64
+echo -n "mypassword" | base64
+```
+```text
+a3ViZWFkbWlu
+bXlwYXNzd29yZA==
+```
+Create a secret using the ``5-secrets.yaml`` yaml file:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-demo
+type: Opaque
+data:
+  username: a3ViZWFkbWlu
+  password: bXlwYXNzd29yZA==
+```
+```bash
+ kubectl create -f 5-secrets.yaml
+```
+List secrets:
+```bash
+NAME                  TYPE                                  DATA   AGE
+default-token-jc9qt   kubernetes.io/service-account-token   3      5d2h
+secret-demo           Opaque                                2      24s
+```
+Delete it:
+```bash
+kubectl delete secret secret-demo
+```
+Now let's create it from command-line:
+```bash
+kubectl create secret --help
+kubectl create secret generic --help
+```
+```text
+Create a secret using specified subcommand.
+
+Available Commands:
+  docker-registry Create a secret for use with a Docker registry
+  generic         Create a secret from a local file, directory or literal value
+  tls             Create a TLS secret
+etc...
+```
+Nice! We can see it is possible to store docker registry credentials.
+
+This one is showing various ways of creating secrets (from values stored in file, from keys...)
+```bash
+kubectl create secret generic --help
+```
+Let's create a secret from values provided on the command-line:
+```bash
+kubectl create secret generic secret-demo --from-literal=username=kubeadmin --from-literal=password=mypassword
+```
+
+Then you can refer to this secret using environment variables ``5-pod-secret-env.yaml``:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox2
+spec:
+  containers:
+  - image: busybox
+    name: busybox
+    command: ["/bin/sh"]
+    args: ["-c", "sleep 600"]
+    env:
+    - name: myusername       # define an env variable...
+      valueFrom:             # from...
+        secretKeyRef:        # a secret:
+          name: secret-demo  # name of the secret
+          key: username      # key in the secret
+```
+```bash
+kubectl create -f 5-pod-secret-env.yaml
+```
+Then display the username:
+```bash
+kubectl exec busybox -- sh -c "echo \$myusername"
+```
+```text
+kubeadmin
+```
+
+You can also mount secrets as volumes ``5-pod-secret-volume.yaml``:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox2
+spec:
+  volumes:                     # a volume
+  - name: secret-volume        # any name
+    secret:                    # created from a secret
+      secretName: secret-demo  # name of the secret
+  containers:
+  - image: busybox
+    name: busybox
+    command: ["/bin/sh"]
+    args: ["-c", "sleep 600"]
+    volumeMounts:              # mount the volume
+    - name: secret-volume      # "any name"
+      mountPath: /mydata       # here
+```
+```bash
+kubectl create -f 5-pod-secret-volume.yaml
+```
+You will have one file per key in the secret (files will contain the value):
+```bash
+kubectl exec busybox2 -- sh -c "cat /mydata/username && echo '' && cat /mydata/password"
+```
+```text
+kubeadmin
+mypassword
+```
+Funny fact, if you change the secret using apply the container is updated **live**:
+```bash
+echo -n "newpassword" | base64
+# replace in 5-secrets.yaml file
+kubectl apply -f 5-secrets.yaml 
+kubectl exec busybox2 -- sh -c "cat /mydata/username && echo '' && cat /mydata/password"
+```
+```text
+kubeadmin
+newpassword
+```
+
+Cleanup:
+```bash
+kubectl delete pod busybox
+kubectl delete pod busybox2
+kubectl delete secret secret-demo
+```
+
+## Create a Secret based on existing Docker credentials
+
+https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+
+Let's create a secret containing your dockerhub credentials: 
+```bash
+kubectl create secret docker-registry dockerhub --docker-server=https://index.docker.io/v1/ --docker-username=<your-username> --docker-password=<your-password> --docker-email=<your-email>
+```
+Now you can create pods with your private images ``5-dockerhub-secret-pod.yaml``:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: yourapp
+spec:
+  containers:
+    - name: yourapp
+      image: yourorganisation/yourapp:latest
+  imagePullSecrets:
+    - name: dockerhub
+```
