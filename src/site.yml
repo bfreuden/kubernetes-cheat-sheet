@@ -1,0 +1,7 @@
+---
+- hosts: node1
+  become: yes
+  vars:
+    nfs_exports: [ "/kube *(rw,sync)" ]
+  roles:
+    - geerlingguy.nfs

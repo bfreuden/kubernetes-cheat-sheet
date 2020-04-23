@@ -1720,3 +1720,350 @@ kubectl delete -f 3-init-container.yaml
 
 https://www.youtube.com/watch?v=I9GMUn15Nes
 
+Persistent volumes are used if you want some data to persist when a pod is terminated or re-scheduled.
+
+There are two kinds of storage provisioning: static and dynamic.
+
+Static provisioning:
+* Cluster administrators create a persistent volume (PV) in Kubernetes.
+* Users of the cluster request persistent volumes using a persistent volume claim (PVC)
+* Pod is created that accesses the PV thanks to its PVC
+
+Dynamic provisioning:
+* Cluster administrator create a storage class 
+* Users of the cluster create a PVC with a storage class
+* The storage is provisioned automatically
+* When the application is undeployed, the storage is automatically destroyed
+
+However dynamic provisioning is supported by only few providers:
+* Amazon ELB, 
+* Google Compute Disks, 
+* Azure Disk, 
+* Azure File...
+
+Some static provisioning providers: 
+* NFS, 
+* Cinder, 
+* Ceph, 
+* Glusterfs, 
+* HostPath (single node only: will not support multi-nodes cluster)...
+
+If a cluster administrator has created a persistent volume of 10 GB and if a user is requesting a 1 GB volume, 
+then the cluster will assign the 10 GB volume to the user. This is a one-to-one mapping: no other user
+will be able to use this PV. 
+
+Life cycle of PV is given by it ReclaimPolicy:
+* Retain: when pod is deleted, PV and its data will still be there
+* Recycle: deprecated, more for dynamic provisioning
+* Delete: when pod is delete, it will delete the PV and its data
+
+Access Mode:
+* RWO: (read-write once) only the first node (?) will be able to write, others will only be able to read 
+* RWM: (read-write many) all nodes can read and write
+* RO: read-only
+
+### HostPath
+
+Let's create a /kube directory on node1:
+```bash
+ansible node1 -b -m file -a "path=/kube state=directory mode=0777"
+```
+Now create a  persistent volume using this ``4-pv-hostpath.yaml`` file:
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-hostpath
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/kube"
+```
+List persistent volumes (our volume is not claimed yet):
+```bash
+kubectl get pv
+```
+```text
+NAME          CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   REASON   AGE
+pv-hostpath   1Gi        RWO            Retain           Available           manual                  10s
+```
+Now let's create a persistent volume claim with the ``4-pvc-hostpath-fail.yaml`` file:
+```yaml
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-hostpath
+spec:
+  storageClassName: manual  # must match the storage class of the PV
+  accessModes:
+    - ReadWriteMany         # this will not match the PV above
+  resources:
+    requests:
+      storage: 100Mi
+```
+```bash
+kubectl create -f 4-pvc-hostpath-fail.yaml
+```
+List pvc:
+```bash
+kubectl get pvc
+```
+```text
+NAME           STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+pvc-hostpath   Pending                                      manual         8s
+```
+Status is pending because there is no PV matching the PVC:
+```bash
+kubectl describe pvc pvc-hostpath | tail -n1
+```
+```text
+Warning  ProvisioningFailed  4s (x14 over 3m11s)  persistentvolume-controller  storageclass.storage.k8s.io "manual" not found
+```
+Delete PVC and create another one with ``ReadWriteOnce`` instead:
+```bash
+kubectl delete pvc pvc-hostpath
+kubectl create -f 4-pvc-hostpath.yaml
+kubectl get pvc,pv
+```
+Now status is Bound, and same for the PV:
+```text
+NAME                                 STATUS   VOLUME        CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+persistentvolumeclaim/pvc-hostpath   Bound    pv-hostpath   1Gi        RWO            manual         19m
+
+NAME                           CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                  STORAGECLASS   REASON   AGE
+persistentvolume/pv-hostpath   1Gi        RWO            Retain           Bound    default/pvc-hostpath   manual                  30m
+```
+Now let's create a container using this volume using the ``4-busybox-pv-hostpath.yaml` file:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox
+spec:
+  volumes:                     # the pod needs a volume
+  - name: host-volume          # this can be any name here
+    persistentVolumeClaim:     
+      claimName: pvc-hostpath  # this one must match the name of the PVC above
+  containers:
+  - image: busybox
+    name: busybox
+    command: ["/bin/sh"]
+    args: ["-c", "sleep 600"]
+    volumeMounts:
+    - name: host-volume       # use the "any name" here 
+      mountPath: /mydata      # mount path
+```
+```bash
+kubectl create -f 4-busybox-pv-hostpath.yaml
+```
+The output shows the pod has been created on node3 (watch...):
+```text
+NAME          READY   STATUS    RESTARTS   AGE   IP             NODE    NOMINATED NODE   READINESS GATES
+pod/busybox   1/1     Running   0          15s   10.233.92.56   node3   <none>           <none>
+```
+That's too bad because our /kube directory has only been created on node1.
+```bash
+kubectl exec busybox -- ls -l /mydata
+```
+```text
+total 0
+```
+```bash
+kubectl exec busybox -- touch /mydata/hello
+kubectl exec busybox -- ls -l /mydata
+```
+```text
+total 0
+-rw-r--r--    1 root     root             0 Apr 23 14:11 hello
+```
+And indeed, we don't have anything in the /kube directory of node1:
+```bash
+ansible node1 -a "ls /kube"
+
+If the pod had been created on node1, we would have seen our ``hello`` file.
+
+```
+If we delete the pod, pv and pvc are still here:
+```bash
+kubectl delete pod busybox
+kubectl get pvc,pv
+```
+```text
+NAME                                 STATUS   VOLUME        CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+persistentvolumeclaim/pvc-hostpath   Bound    pv-hostpath   1Gi        RWO            manual         21m
+
+NAME                           CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                  STORAGECLASS   REASON   AGE
+persistentvolume/pv-hostpath   1Gi        RWO            Retain           Bound    default/pvc-hostpath   manual                  32m
+```
+So you need to delete the PVC and after that the status of the PV is Released:
+```bash
+kubectl delete pvc pvc-hostpath 
+kubectl get pv
+```
+```text
+NAME          CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS     CLAIM                  STORAGECLASS   REASON   AGE
+pv-hostpath   1Gi        RWO            Retain           Released   default/pvc-hostpath   manual                  34m
+```
+Note that you can't claim this volume because of the Retain policy and the Released status.
+
+You have to delete it:
+```bash
+kubectl delete pv pv-hostpath
+```
+Note that the ``hello`` file remains on node1.
+
+If you want the volume to be deleted automatically, use the Delete policy:
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-hostpath
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  persistentVolumeReclaimPolicy: Delete  # delete
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/kube"
+```
+```bash
+kubectl create -f 4-pv-hostpath-delete.yaml
+kubectl create -f 4-pvc-hostpath.yaml
+kubectl delete -f 4-pvc-hostpath.yaml
+```
+But the PV is still here:
+```text
+NAME                           CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                  STORAGECLASS   REASON   AGE
+persistentvolume/pv-hostpath   1Gi        RWO            Delete           Failed   default/pvc-hostpath   manual                  110s
+```
+Because:
+```bash
+kubectl describe pv pv-hostpath | tail -n1
+```
+```text
+Warning  VolumeFailedDelete  10m   persistentvolume-controller  host_path deleter only supports /tmp/.+ but received provided /kube
+```
+So we can see HostPath has a lot of constraints...
+
+### NFS
+
+Let's install an NFS server on node1 using this ``site.yaml`` playbook:
+```yaml
+---
+- hosts: node1
+  become: yes
+  vars:
+    nfs_exports: [ "/kube *(rw,sync)" ]
+  roles:
+    - geerlingguy.nfs
+```
+```bash
+sudo ansible-galaxy install geerlingguy.nfs
+ansible-playbook site.yml
+```
+And install NFS client on all machines:
+```bash
+ansible node1,node2,node3 -b -m apt -a "name=nfs-common state=present"
+```
+
+Now let's create an NFS PV using this ``4-pv-nfs.yaml`` file:
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nfs-pv1
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: node1
+    path: "/kube"
+```
+```bash
+kubectl create -f 4-pv-nfs.yaml
+```
+Now let's create an NFS PVC using this ``4-pvc-nfs.yaml`` file:
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-nfs-pv1
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 500Mi
+```
+Create an ``index.html`` file in the NFS share of node1:
+```bash
+ansible node1 -m shell -a 'echo "<h1>Hello from Kubernetes!</h1>" > /kube/index.html'
+```
+Create an nginx pod using this ``4-nfs-nginx.yaml`` file:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: nginx
+  name: nginx-deploy
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      run: nginx
+  template:
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      volumes:
+      - name: www
+        persistentVolumeClaim:
+          claimName: pvc-nfs-pv1    # refers to the claim
+      containers:
+      - image: nginx
+        name: nginx
+        volumeMounts:
+        - name: www
+          mountPath: /usr/share/nginx/html
+```
+```bash
+kubectl create -f 4-nfs-nginx.yaml
+````
+Once pods are created:
+```bash
+kubectl get pods
+```
+```text
+NAME                            READY   STATUS    RESTARTS   AGE
+nginx-deploy-6fdd5b84cc-422kd   1/1     Running   0          5m26s
+nginx-deploy-6fdd5b84cc-sfb8h   1/1     Running   0          5m26s
+nginx-deploy-6fdd5b84cc-w5xdd   1/1     Running   0          5m26s
+```
+You can check them independently:
+```bash
+kubectl port-forward nginx-deploy-6fdd5b84cc-422kd 8080:80
+curl localhost:8080
+```
+```text
+<h1>Hello from Kubernetes!</h1>
+```
+There are all working and reading their ``index.html`` file from the NFS share.
