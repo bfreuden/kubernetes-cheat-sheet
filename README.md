@@ -5,10 +5,9 @@ Official documentation:
 
 https://kubernetes.io/fr/docs/home/
 
-A huge YouTube Kubernetes playlist and a huge **thank you** to Venkat Nagappan, the author of the playlist (this cheat sheet is based on this great content):
+A huge YouTube Kubernetes playlist and a huge **thank you** to the author of the playlist (this cheat sheet is based on this great content):
 
 https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
-
 
 
 
@@ -16,6 +15,7 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
   * [Installation](#installation)
   * [Setup bash completion](#setup-bash-completion)
 - [Minikube](#minikube)
+- [Microk8s](#microk8s)
 - [K8s with vagrant](#k8s-with-vagrant)
 - [K3s](#k3s)
   * [Installation](#installation-1)
@@ -52,6 +52,12 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [NFS](#nfs)
   * [Secrets](#secrets)
   * [Create a Secret based on existing Docker credentials](#create-a-secret-based-on-existing-docker-credentials)
+  * [Config maps](#config-maps)
+  * [Resource quotas and limits](#resource-quotas-and-limits)
+    + [Limit number of pods (etc...) in a namespace](#limit-number-of-pods--etc--in-a-namespace)
+    + [Limit the memory for a namespace](#limit-the-memory-for-a-namespace)
+  * [Renaming nodes](#renaming-nodes)
+  * [Setting up Rancher](#setting-up-rancher)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -2454,3 +2460,252 @@ Cleanup:
 ```bash
 kubectl delete pod busybox
 ```
+
+## Resource quotas and limits
+
+https://youtu.be/4C-0idGOi2A?t=151
+
+It is used to prevent a particular user from using the entire cluster capacity.
+
+Resource quotas apply to namespaces. The following example is about memory but
+you have CPU limits as well. 
+
+Let's create a namespace:
+```bash
+kubectl create ns quota-demo-ns
+```
+### Limit number of pods (etc...) in a namespace
+
+You can prevent from creating more than 2 pods and 1 configmap using the ``7-quota-count.yaml`` file:
+```yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: quota-demo1
+  namespace: quota-demo-ns
+spec:
+  hard:
+    pods: "2"
+    configmaps: "1"
+```
+```bash
+kubectl create -f 7-quota-count.yaml 
+```
+
+Now create a configmap and check the quota to see where you stand wrt to quotas:
+```bash
+kubectl -n quota-demo-ns create configmap myconf --from-literal=key=value
+kubectl -n quota-demo-ns describe quota quota-demo1
+```
+```text
+Name:       quota-demo1
+Namespace:  quota-demo-ns
+Resource    Used  Hard
+--------    ----  ----
+configmaps  1     1
+pods        0     2
+```
+Of course if you try to create more than 1 configmap, or more than 2 pods you'll get an error.
+
+But there is a subtle behavior though: you will not get a error if you try to **scale** an existing deployment with --replicas=3,
+but the number of pods will stick to 2 and you will have some warnings here and there 
+```bash
+kubectl -n quota-demo-ns create -f 1-nginx-deployment.yaml 
+kubectl -n quota-demo-ns scale deployment nginx-deploy --replicas=3
+```
+Shows a deployment with DESIRED count that is below the CURRENT count(watch...):
+```text
+NAME                                      DESIRED   CURRENT   READY   AGE     CONTAINERS   IMAGES   SELECTOR
+replicaset.apps/nginx-deploy-6db489d4b7   3         2         2       2m57s   nginx        nginx    pod-template-hash=6db489d4b7,run=nginx
+```
+And if you describe the replicaset you will see a "quota exceeded" warning:
+```bash
+kubectl -n quota-demo-ns describe replicasets.apps nginx-deploy-6db489d4b7  | tail -n1
+```
+```text
+Warning  FailedCreate      87s (x7 over 4m8s)  replicaset-controller  (combined from similar events): Error creating: pods "nginx-deploy-6db489d4b7-zx9lk" is forbidden: exceeded quota: quota-demo1, requested: pods=1, used: pods=2, limited: pods=2
+```
+Cleanup:
+```bash
+kubectl -n quota-demo-ns delete quota quota-demo1
+kubectl -n quota-demo-ns delete -f 1-nginx-deployment.yaml 
+
+```
+
+### Limit the memory for a namespace
+
+You can limit the memory to 500 Mi using the ``7-quota-mem.yaml`` file:
+```yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: quota-demo-mem
+  namespace: quota-demo-ns
+spec:
+  hard:
+    limits.memory: "500Mi"  # all your pods collectively can't go beyond 500Mi
+```
+```bash
+kubectl create -f 7-quota-mem.yaml
+```
+Now if you try to create the simplest pod, it will fail:
+```bash
+kubectl -n quota-demo-ns create -f 1-nginx-pod.yaml
+```
+```text
+Error from server (Forbidden): error when creating "1-nginx-pod.yaml": pods "nginx" is forbidden: failed quota: quota-demo-mem: must specify limits.memory
+```
+That's because now you need to specify a limit for you pod. Let's do it with the ``7-pod-quota-mem.yaml`` file:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: quota-demo-ns
+spec:
+  containers:
+    - image: nginx
+      name: nginx
+      resources:
+        limits:              # set a limit
+          memory: "100Mi"    # on memory allocation for the pod
+```
+Now if you describe the quota:
+```bash
+kubectl -n quota-demo-ns describe quota quota-demo-mem 
+```
+```text
+Name:          quota-demo-mem
+Namespace:     quota-demo-ns
+Resource       Used   Hard
+--------       ----   ----
+limits.memory  100Mi  500Mi
+```
+You don't have to specify a limit for each pod though. 
+You can create a limit range with the ``7-quota-limitrange.yaml`` file:
+```yaml
+
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: mem-limitrange
+  namespace: quota-demo-ns
+spec:
+  limits:
+  - default:
+      memory: 300Mi    # 300 Mi memory allowed for the namespace??
+    defaultRequest:    # each time something is requesting memory
+      memory: 50Mi     # it will be allocated 50Mi
+    type: Container    # "something" is a container
+```
+```bash
+kubectl create -f 7-quota-limitrange.yaml
+```
+That will have the effect of adding a ``resource`` section (to containers that don't have any?):
+```yaml
+      resources:
+        limits:        
+          memory: "50Mi"
+```
+This is different from this:
+```yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: quota-demo-mem
+  namespace: quota-demo-ns
+spec:
+  hard:
+    limits.memory: "500Mi"  # all your pods collectively can't go beyond 500Mi
+    requests.memory: "100Mi"  # a request can't go beyond 100Mi (but can be lower)
+```
+There is also a notion of limit and request for the pod:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: quota-demo-ns
+spec:
+  containers:
+    - image: nginx
+      name: nginx
+      resources:
+        limits:            # bad things will happen beyond limits:
+          memory: "100Mi"    # pod will be killed if going above 100Mi
+          cpu: 1             # pod will be throttled if going above 1 CPU core usage
+        requests:          # this is probably for scheduling purpose
+          memory: "50Mi"     # your pod should use around 50Mi
+          cpu: 500m          # your pod should use 500 milli shares of the CPU core
+```
+This article is interesting: https://sysdig.com/blog/kubernetes-limits-requests/
+
+We learn that you can allow (and limit) overcommit on your nodes and the conclusion is:
+
+*Some lessons you should learn from this are:*
+
+* *Dear developer, set requests and limits in your workloads.*
+* *Beloved cluster admin, setting a namespace quota will enforce all of the workloads in the namespace to have a request and limit in every container.*
+
+*Quotas are a necessity to properly share resources. If someone tells you that you can use any shared service without limits, they are either lying or the system will eventually collapse, to no fault of your own.* 
+
+
+## Renaming nodes
+
+https://www.youtube.com/watch?v=TqoA9HwFLVU
+
+
+## Setting up Rancher
+
+https://www.youtube.com/watch?v=jF5L6IgZ5To
+
+Unlike the Kubernetes Dashboard, Rancher can manage multiple clusters.
+
+Rancher is a docker container that you will install on another machine.
+
+```bash
+docker run -d --name rancher --restart=unless-stopped -p 80:80 -v /opt/rancher:/var/lib/rancher -p 443:443 rancher/rancher
+```
+Once up, open: https://localhost/ 
+
+You are required to provide:
+ * a password
+ * Rancher Server URL: make sure that URL is accessible from the nodes of the cluster
+
+The select "create cluster" and "existing cluster".
+
+Then Rancher will ask you to run a kubectl command on the cluster, something like this:
+```bash
+kubectl apply -f https://mylaptop/v3/import/j5vz82trdj2hqxkjnbcqw7xnbbtxwddbxcdltbnzbbnsd2n948npgm.yaml
+```
+And if you don't a valid SSL certificate, run:
+```bash
+curl --insecure -sfL https://mylaptop/v3/import/j5vz82trdj2hqxkjnbcqw7xnbbtxwddbxcdltbnzbbnsd2n948npgm.yaml | kubectl apply -f -
+```
+Then you can watch the deployment progress:
+```bash
+watch kubectl -n cattle-system get all -o wide 
+```
+After 5 minutes (time to download images) you should be done.
+
+After that you'll have a nice dashboard and you can:
+* and you can type your kubectl commands in the web browser 
+* create deployments, 
+* scale pods, 
+* execute shells on pods,
+* see container logs,
+* see cluster events... 
+
+It is very nice.
+
+Then you can continue with this video showing how to install monitoring tools (Prometheus and Grafana) in 1 click.
+
+https://youtu.be/-xEGoiCXavw?t=473
+
+Grafana dashboards are incredibly rich.
+
+But you don't really need to access grafana itself. The simple fact of activating monitoring
+will make Rancher UI look different and richer.
+
+ 
+
