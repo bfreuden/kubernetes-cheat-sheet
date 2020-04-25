@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: nginx
+  name: nginx-deploy
+spec:
+  replicas: 4               # we start from 4 replicas
+  selector:
+    matchLabels:
+      run: nginx
+  strategy:                 # new update related options
+    type: RollingUpdate     # we want a rolling update
+    rollingUpdate:          # update options (there exists some methods based on readiness probes)
+      maxSurge: 0           # during the update there can't be more than replicas+maxSurge pods (can be a %)
+      maxUnavailable: 1     # during the update 1 pod can be unavailable (can be a %)
+  minReadySeconds: 5        # wait 10 seconds after starting a new pod, before updating the next one
+  revisionHistoryLimit: 10  # by default K8s keeps the last 10 versions
+  template:
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      containers:
+        - image: nginx:1.14
+          name: nginx

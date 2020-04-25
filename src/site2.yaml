@@ -1,0 +1,16 @@
+---
+- hosts: node1
+  become: yes
+  vars:
+    nfs_exports:
+      - "/kube *(rw,sync)"  # previous example, let's keep it
+      - "/srv/nfs/kubedata/pv0 *(rw,sync)"
+      - "/srv/nfs/kubedata/pv1 *(rw,sync)"
+      - "/srv/nfs/kubedata/pv2 *(rw,sync)"
+      - "/srv/nfs/kubedata/pv3 *(rw,sync)"
+      - "/srv/nfs/kubedata/pv4 *(rw,sync)"
+  tasks:
+    - file: path=/srv/nfs/kubedata/pv{{item}} mode=0777 state=directory
+      loop: [ "0", "1", "2", "3", "4" ]
+  roles:
+    - geerlingguy.nfs

@@ -10,7 +10,6 @@ A huge YouTube Kubernetes playlist and a huge **thank you** to the author of the
 https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
 
 
-
 - [Kubectl](#kubectl)
   * [Installation](#installation)
   * [Setup bash completion](#setup-bash-completion)
@@ -49,15 +48,34 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
   * [Init containers](#init-containers)
   * [Persistent volumes and claims](#persistent-volumes-and-claims)
     + [HostPath](#hostpath)
-    + [NFS](#nfs)
+    + [NFS Volumes](#nfs-volumes)
+  * [Getting started with Helm](#getting-started-with-helm)
+    + [Installing Helm](#installing-helm)
+    + [Installing Helm 2.x](#installing-helm-2x)
+    + [Migrating from Helm 2.x](#migrating-from-helm-2x)
+  * [Installing Jenkins in Kubernetes using Helm](#installing-jenkins-in-kubernetes-using-helm)
+  * [Configuring Jenkins to connect to Kubernetes](#configuring-jenkins-to-connect-to-kubernetes)
+  * [Dynamically provision NFS persistent volumes](#dynamically-provision-nfs-persistent-volumes)
   * [Secrets](#secrets)
+  * [Statefulsets](#statefulsets)
+    + [Create NFS shares](#create-nfs-shares)
+    + [Create PVs](#create-pvs)
+    + [Create Statefulset](#create-statefulset)
   * [Create a Secret based on existing Docker credentials](#create-a-secret-based-on-existing-docker-credentials)
   * [Config maps](#config-maps)
   * [Resource quotas and limits](#resource-quotas-and-limits)
     + [Limit number of pods (etc...) in a namespace](#limit-number-of-pods--etc--in-a-namespace)
     + [Limit the memory for a namespace](#limit-the-memory-for-a-namespace)
+  * [Performing Rolling Updates of applications](#performing-rolling-updates-of-applications)
+    + [Update](#update)
+    + [Rollback](#rollback)
+    + [Pausing and resume=ing a rollout](#pausing-and-resume-ing-a-rollout)
   * [Renaming nodes](#renaming-nodes)
+  * [How to upgrade your Kubernetes Cluster](#how-to-upgrade-your-kubernetes-cluster)
   * [Setting up Rancher](#setting-up-rancher)
+  * [Monitoring Kubernetes Cluster with Rancher](#monitoring-kubernetes-cluster-with-rancher)
+  * [Kubernetes Logging with Rancher, Fluentd and Elastic Stack](#kubernetes-logging-with-rancher--fluentd-and-elastic-stack)
+  * [Kubernetes alerts to Slack with Rancher](#kubernetes-alerts-to-slack-with-rancher)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -2000,7 +2018,9 @@ Warning  VolumeFailedDelete  10m   persistentvolume-controller  host_path delete
 ```
 So we can see HostPath has a lot of constraints...
 
-### NFS
+### NFS Volumes
+
+https://youtu.be/to14wmNmRCI
 
 Let's install an NFS server on node1 using this ``site.yaml`` playbook:
 ```yaml
@@ -2111,6 +2131,80 @@ curl localhost:8080
 <h1>Hello from Kubernetes!</h1>
 ```
 There are all working and reading their ``index.html`` file from the NFS share.
+
+Cleanup:
+```bash
+kubectl delete deploy nginx-deploy
+kubectl delete pvc pvc-nfs-pv1 
+kubectl delete pv pv-nfs-pv1
+```
+
+## Getting started with Helm
+
+Official documentation: https://helm.sh/
+
+Normally when you want to deploy an application you're writing yaml files and using kubectl to create corresponding 
+resources in the cluster. Helms brings some standardization, documentation so it is easier for people to deploy applications in Kubernetes.
+You can think of Helm as a package manager. 
+
+A **chart** is a Helm package. It contains all of the resource definitions necessary to run an application, tool, or service inside of a Kubernetes cluster.
+Charts come with default values, but Helm make it possible to easily override those values (using command-line or files).
+There are existing charts like: MySQL, Redis, Jenkins...
+
+A **repository** is the place where charts can be collected and shared. There are online Helm **repositories** of charts, but you can run your own repo inside your cluster.
+
+A **release** is an instance of a chart running in a Kubernetes cluster.
+
+To summarize: Helm installs **charts** into Kubernetes, creating a new **release** for each installation. And to find new charts, you can search Helm chart **repositories**.
+
+Some Helm command-line options: ``help``, ``install`` ( ``--values``,  ``--name``), ``fetch``, ``list``, 
+``status``, ``search``, ``repo update``,
+ ``upgrade``,  ``rollback``, ``delete`` ( ``--purge``), ``reset``  ( ``--force``,  ``--rename-helm-home``)
+
+### Installing Helm
+
+Helm is a binary you install on your laptop.
+
+Note that Helm 2.x required and installed a replicaset called **tiller** you must deploy on your cluster. 
+This is no longer true with Helm 3.x.
+
+Just download the tgz from https://github.com/helm/helm/releases and to extract the executable somewhere.
+
+
+### Installing Helm 2.x
+
+As tiller will do the deployment, we need to give it the permission to do it on our behalf. 
+So we're going to create a service account with the ``cluster-admin`` role binding. 
+This is not the best practise but that's ok for a demo cluster.
+
+This procedure is described here: https://youtu.be/HTj3MMZE6zg?t=868
+
+### Migrating from Helm 2.x
+
+This procedure is described here: https://youtu.be/aAPtT4uaY1o
+
+## Installing Jenkins in Kubernetes using Helm
+
+https://youtu.be/ObGR0EfVPlg
+
+## Configuring Jenkins to connect to Kubernetes
+
+https://youtu.be/DAe2Md9sGNA
+
+https://youtu.be/V4kYbHlQYHg
+
+## Dynamically provision NFS persistent volumes
+
+https://youtu.be/AavnQzWDTEk?t=63
+
+In the previous sections we saw that that when a cluster user creates a PVC, the cluster administrator has
+to manually create PVs. This is time consuming.
+
+When using Kubernetes in the cloud, there is the notion of dynamic provisioning:
+* you make a volume claim
+* a volume is created automatically
+* you delete your app and your claim
+* the volume is automatically deleted
 
 ## Secrets
 
@@ -2256,6 +2350,196 @@ Cleanup:
 kubectl delete pod busybox
 kubectl delete pod busybox2
 kubectl delete secret secret-demo
+```
+
+## Statefulsets
+
+https://youtu.be/r_ZEpPTCcPE?t=73
+
+Statefulsets are pods with a unique name, a unique network identity, a unique stable storage and an ordered provisioning.
+
+Unique name: if the stateful set is called ``web``, pods will be called ``web-0``, ``web-1``, ``web-2``, ``web-3``
+
+Ordered provisioning: 
+* when creating/starting the pods the order will be ``web-0``, then ``web-1``, etc...
+* when deleting/stopping the pods the order will be ``web-3``, then ``web-2``, etc...
+* if an error happens during the start of ``web-1`` then ``web-2`` and ``web-3`` won't be started.
+* if an error happens during the stop of ``web-2`` then ``web-1`` and ``web-0`` won't be stopped.
+* rolling updates will start from the last pod
+
+Unique stable storage: each pod has its dedicated PersistentVolume : ``pv-0``, ``pv-1``, ``pv-2``, ``pv-3``
+And if the ``web-1`` is rescheduled on another node, the new ``web-1`` pod will have the same ``pv-1`` volume (so the same data).
+
+### Create NFS shares
+
+Let's install an NFS server on node1 using this ``site2.yaml`` playbook:
+```yaml
+---
+- hosts: node1
+  become: yes
+  vars:
+    nfs_exports:
+    - "/srv/nfs/kubedata/pv0 *(rw,sync)"
+    - "/srv/nfs/kubedata/pv1 *(rw,sync)"
+    - "/srv/nfs/kubedata/pv2 *(rw,sync)"
+    - "/srv/nfs/kubedata/pv3 *(rw,sync)"
+    - "/srv/nfs/kubedata/pv4 *(rw,sync)"
+  tasks:
+    - file: path=/srv/nfs/kubedata/pv{{item}} mode=0777 state=directory
+      loop: [ "0", "1", "2", "3", "4" ]
+    - file: path=/srv/nfs/kubedata mode=0777 state=directory
+  roles:
+    - geerlingguy.nfs
+```
+```bash
+# if not done already
+sudo ansible-galaxy install geerlingguy.nfs
+ansible-playbook site2.yml
+```
+And install NFS client on all machines:
+```bash
+ansible node1,node2,node3 -b -m apt -a "name=nfs-common state=present"
+```
+
+### Create PVs
+
+Here we'll be using static provisioning.
+
+Let's create all PV using this ``9-sts-pv.yaml`` yaml file:
+```yaml
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nfs-pv0
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 200Mi
+  accessModes:
+    - ReadWriteOnce
+  nfs:
+    server: node1
+    path: "/srv/nfs/kubedata/pv0"
+---
+# repeated 4 times with /srv/nfs/kubedata/pv1, /srv/nfs/kubedata/pv2...
+```
+```bash
+kubectl create -f 9-sts-pv.yaml
+```
+
+### Create Statefulset
+
+We don't need to create the PVC manually, this will be done by the statefulset.
+
+Let's create the statefulset using this ``9-sts-nginx.yaml`` file:
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-headless   # this headless service is mandatory
+  labels:                # it will link all pods of the statefulset
+    run: nginx-sts-demo  # and guarantee a unique network identity for each pod
+spec:
+  ports:
+  - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    run: nginx-sts-demo
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nginx-sts
+spec:
+  serviceName: "nginx-headless"   # this must be the same as above
+  replicas: 4                     # statefulset will have 4 replicas
+  #podManagementPolicy: Parallel  # by default if is Ordered
+  selector:
+    matchLabels:
+      run: nginx-sts-demo
+  template:
+    metadata:
+      labels:
+        run: nginx-sts-demo
+    spec:
+      containers:              
+      - name: nginx             # we're deploying ngnix containers
+        image: nginx
+        volumeMounts:           # it requires a volume
+        - name: www             # called www-[0-4]
+          mountPath: /var/www/  # mounted here
+  volumeClaimTemplates:
+  - metadata:                   # here is the PVC
+      name: www                 # called www-[0-4]
+    spec:
+      storageClassName: manual  # will match the PV we've created above
+      accessModes:
+        - ReadWriteOnce         # each pod will have its own PV, so ReadWriteOnce is ok
+      resources:
+        requests:
+          storage: 100Mi
+```
+```bash
+kubectl create -f 9-sts-nginx.yaml
+```
+
+Let let's have a look and PVs and PVCs:
+```bash
+kubectl get pv,pvc
+```
+```text
+NAME                          CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM                     STORAGECLASS   REASON   AGE
+persistentvolume/pv-nfs-pv0   200Mi      RWO            Retain           Bound       default/www-nginx-sts-1   manual                  75s
+persistentvolume/pv-nfs-pv1   200Mi      RWO            Retain           Bound       default/www-nginx-sts-2   manual                  75s
+persistentvolume/pv-nfs-pv2   200Mi      RWO            Retain           Available                             manual                  75s
+persistentvolume/pv-nfs-pv3   200Mi      RWO            Retain           Bound       default/www-nginx-sts-3   manual                  75s
+persistentvolume/pv-nfs-pv4   200Mi      RWO            Retain           Bound       default/www-nginx-sts-0   manual                  75s
+
+NAME                                    STATUS   VOLUME       CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+persistentvolumeclaim/www-nginx-sts-0   Bound    pv-nfs-pv4   200Mi      RWO            manual         61s
+persistentvolumeclaim/www-nginx-sts-1   Bound    pv-nfs-pv0   200Mi      RWO            manual         55s
+persistentvolumeclaim/www-nginx-sts-2   Bound    pv-nfs-pv1   200Mi      RWO            manual         49s
+persistentvolumeclaim/www-nginx-sts-3   Bound    pv-nfs-pv3   200Mi      RWO            manual         39s
+```
+
+Let's create a file in /var/www directory of the ``nginx-sts-2`` pod: 
+```bash
+kubectl exec nginx-sts-2 -- touch /var/www/hello
+kubectl exec nginx-sts-2 -- ls /var/www
+```
+```text
+hello
+```
+
+Now if ever ``nginx-sts-2`` pod gets killed:
+```bash
+kubectl delete pod nginx-sts-2
+```
+Then a few seconds later (see in watch...) it is created again by kubernetes it is it still containing hello:
+```bash
+kubectl exec nginx-sts-2 -- ls /var/www
+```
+```text
+hello
+```
+Now let's delete the statefulset
+```bash
+# this is because, per k8s doc, there is no guarantee the delete sts will actually delete all pods
+kubectl scale sts nginx-sts --replicas=0
+kubectl delete sts nginx-sts
+```
+You also have to delete PVCs and PVs manually:
+```bash
+kubectl delete pvc --all
+kubectl delete pv --all
+```
+And delete the headless service too:
+```bash
+kubectl delete service nginx-headless
 ```
 
 ## Create a Secret based on existing Docker credentials
@@ -2650,10 +2934,279 @@ We learn that you can allow (and limit) overcommit on your nodes and the conclus
 *Quotas are a necessity to properly share resources. If someone tells you that you can use any shared service without limits, they are either lying or the system will eventually collapse, to no fault of your own.* 
 
 
+## Performing Rolling Updates of applications
+
+https://youtu.be/MoyixCuN3UQ?t=174
+
+A rolling update consists in iteratively stopping a replica from a replicaset, then replacing it with a new version 
+until all replicas have been updated. During that operation Kubernetes is ensuring there is no downtime of the app.
+
+### Update
+
+That can be done using specific deployment options like in the  ``8-nginx-rolling-update.yaml`` file:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: nginx
+  name: nginx-deploy
+spec:
+  replicas: 4               # we start from 4 replicas
+  selector:
+    matchLabels:
+      run: nginx
+  strategy:                 # new update related options, those are k8s default options:
+    type: RollingUpdate     # we want a rolling update (other option is Recreate that is good for dev envs)
+    rollingUpdate:          # update options (there exists some methods based on readiness probes)
+      maxSurge: 0           # during the update there can't be more than replicas+maxSurge pods (can be a %)
+      maxUnavailable: 1     # during the update 1 pod can be unavailable (can be a %)
+  minReadySeconds: 5        # wait 10 seconds after starting a new pod, before updating the next one
+  revisionHistoryLimit: 10  # by default K8s keeps the last 10 versions (in addition to current version)
+  template:
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      containers:
+      - image: nginx:1.14
+        name: nginx
+```
+```bash
+kubectl create -f 8-nginx-rolling-update.yaml
+```
+Once the deployment is done, change the version of the image to:
+```yaml
+      - image: nginx:1.14.2
+```
+Then start the rolling update with:
+```bash
+kubectl apply -f 8-nginx-rolling-update.yaml
+```
+And you can see Kubernetes creating another replicaset and starting to replace the first pod:
+```text
+NAME                                READY   STATUS              RESTARTS   AGE     IP             NODE    NOMINATED NODE   READINESS GATES
+pod/nginx-deploy-54b45bcb99-gckvp   0/1     ContainerCreating   0          3s      <none>         node2   <none>           <none>
+pod/nginx-deploy-5cf565498c-84fxz   1/1     Running             0          4m12s   10.233.92.91   node3   <none>           <none>
+pod/nginx-deploy-5cf565498c-bw6sz   1/1     Running             0          4m12s   10.233.96.15   node2   <none>           <none>
+pod/nginx-deploy-5cf565498c-nm72b   1/1     Running             0          4m12s   10.233.90.96   node1   <none>           <none>
+pod/nginx-deploy-5cf565498c-rbbpz   0/1     Terminating         0          4m12s   10.233.92.92   node3   <none>           <none>
+
+NAME                           READY   UP-TO-DATE   AVAILABLE   AGE     CONTAINERS   IMAGES         SELECTOR
+deployment.apps/nginx-deploy   3/4     1            3           4m13s   nginx        nginx:1.14.2   run=nginx
+
+NAME                                      DESIRED   CURRENT   READY   AGE     CONTAINERS   IMAGES         SELECTOR
+replicaset.apps/nginx-deploy-54b45bcb99   1         1         0       4s      nginx        nginx:1.14.2   pod-template-hash=54b45bcb99,run=nginx
+replicaset.apps/nginx-deploy-5cf565498c   3         3         3       4m13s   nginx        nginx:1.14     pod-template-hash=5cf565498c,run=nginx
+```
+Then the second:
+```text
+NAME                                READY   STATUS        RESTARTS   AGE     IP             NODE    NOMINATED NODE   READINESS GATES
+pod/nginx-deploy-54b45bcb99-gckvp   1/1     Running       0          10s     10.233.96.16   node2   <none>           <none>
+pod/nginx-deploy-54b45bcb99-gqcbn   0/1     Pending       0          0s      <none>         node3   <none>           <none>
+pod/nginx-deploy-5cf565498c-84fxz   1/1     Running       0          4m19s   10.233.92.91   node3   <none>           <none>
+pod/nginx-deploy-5cf565498c-bw6sz   1/1     Terminating   0          4m19s   10.233.96.15   node2   <none>           <none>
+pod/nginx-deploy-5cf565498c-nm72b   1/1     Running       0          4m19s   10.233.90.96   node1   <none>           <none>
+pod/nginx-deploy-5cf565498c-rbbpz   0/1     Terminating   0          4m19s   10.233.92.92   node3   <none>           <none>
+
+NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE     SELECTOR
+service/kubernetes   ClusterIP   10.233.0.1   <none>        443/TCP   6d22h   <none>
+
+NAME                           READY   UP-TO-DATE   AVAILABLE   AGE     CONTAINERS   IMAGES         SELECTOR
+deployment.apps/nginx-deploy   4/4     1            4           4m19s   nginx        nginx:1.14.2   run=nginx
+
+```
+etc... In the end you have 4 new pods and 2 replicasets:
+
+```text
+NAME                                READY   STATUS    RESTARTS   AGE     IP             NODE    NOMINATED NODE   READINESS GATES
+pod/nginx-deploy-54b45bcb99-4gtlb   1/1     Running   0          2m51s   10.233.92.94   node3   <none>           <none>
+pod/nginx-deploy-54b45bcb99-cz8bw   1/1     Running   0          3m5s    10.233.90.97   node1   <none>           <none>
+pod/nginx-deploy-54b45bcb99-gckvp   1/1     Running   0          3m25s   10.233.96.16   node2   <none>           <none>
+pod/nginx-deploy-54b45bcb99-gqcbn   1/1     Running   0          3m15s   10.233.92.93   node3   <none>           <none>
+
+NAME                           READY   UP-TO-DATE   AVAILABLE   AGE     CONTAINERS   IMAGES         SELECTOR
+deployment.apps/nginx-deploy   4/4     4            4           7m34s   nginx        nginx:1.14.2   run=nginx
+
+NAME                                      DESIRED   CURRENT   READY   AGE     CONTAINERS   IMAGES         SELECTOR
+replicaset.apps/nginx-deploy-54b45bcb99   4         4         4       3m25s   nginx        nginx:1.14.2   pod-template-hash=54b45bcb99,run=nginx
+replicaset.apps/nginx-deploy-5cf565498c   0         0         0       7m34s   nginx        nginx:1.14     pod-template-hash=5cf565498c,run=nginx
+```
+If you delete the old replicaset (last line) you will loose the ability to rollback the deployment.
+
+You can get the status of a rollout (during a rollout this command will not return
+ immediatly and show the progress of the rollout):
+```bash
+kubectl rollout status deployment nginx-deploy
+```
+```text
+deployment "nginx-deploy" successfully rolled out
+```
+You can get the history of a rollout:
+```bash
+kubectl rollout history deployment nginx-deploy
+```
+```text
+deployment.apps/nginx-deploy 
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+```
+Now let's do a rolling update using the command-line:
+```bash
+kubectl set image deployment nginx-deploy nginx=nginx:1.15
+```
+Rollout history is now:
+```bash
+kubectl rollout history deployment nginx-deploy
+```
+```text
+deployment.apps/nginx-deploy 
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+3         <none>
+```
+You can have details on revisions:
+```bash
+kubectl rollout history deployment nginx-deploy --revision=1
+```
+```text
+deployment.apps/nginx-deploy with revision #1
+Pod Template:
+  Labels:	pod-template-hash=5cf565498c
+	run=nginx
+  Containers:
+   nginx:
+    Image:	nginx:1.14
+    Port:	<none>
+    Host Port:	<none>
+    Environment:	<none>
+    Mounts:	<none>
+  Volumes:	<none>
+```
+Now let's speed up the rollout by allowing more pods that can be allocated and less : 
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: nginx
+  name: nginx-deploy
+spec:
+  replicas: 4               
+  selector:
+    matchLabels:
+      run: nginx
+  strategy:                
+    type: RollingUpdate    
+    rollingUpdate:         
+      maxSurge: 2           # during the update you can have 2 extra pods
+      maxUnavailable: 2     # during the update 2 pods can be unavailable
+  minReadySeconds: 5        
+  revisionHistoryLimit: 10  
+  template:
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      containers:
+      - image: nginx:1.15
+        name: nginx
+```
+```bash
+kubectl apply -f 8-nginx-rolling-update3.yaml
+```
+And before the last rollout, we want to add a change cause in our revision history:
+```bash
+kubectl annotate deployment nginx-deploy kubernetes.io/change-cause="Updated to latest version"
+```
+Then update nginx to the latest version:
+```bash
+kubectl set image deployment nginx-deploy nginx=nginx:latest
+```
+Rollout history is now (strange):
+```bash
+kubectl rollout history deployment nginx-deploy
+```
+```text
+deployment.apps/nginx-deploy 
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+3         Updated to latest version
+4         Updated to latest version
+```
+So we probably need to call this annotate before the rollout.
+
+You can also use the ``--record`` option to save the entire command in the change cause:
+```bash
+kubectl set image deployment nginx-deploy nginx=nginx:1.17 --record
+kubectl rollout history deployment nginx-deploy
+```
+```text
+deployment.apps/nginx-deploy 
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+3         Updated to latest version
+4         Updated to latest version
+5         kubectl set image deployment nginx-deploy nginx=nginx:1.17 --record=true
+```
+
+You can also set this annotation in the deployment yaml file:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kubernetes.io/change-cause: "Updated to version N"
+  labels:
+    run: nginx
+  name: nginx-deploy
+```
+Cleanup:
+```bash
+kubectl delete deployments.apps nginx-deploy
+```
+
+### Rollback
+
+Now let's try to rollback a deployment:
+```bash
+kubectl rollout undo deployment nginx-deploy --to-revision=3
+```
+Without ``--to-revision`` option it rollbacks to the previous version.
+```text
+deployment.apps/nginx-deploy 
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+4         Updated to latest version 
+5         kubectl set image deployment nginx-deploy nginx=nginx:1.17 --record=true
+6         Updated to latest version
+```
+
+### Pausing and resume=ing a rollout
+
+
+Pause:
+```bash
+kubectl rollout pause deployment nginx-deploy
+```
+Resume:
+```bash
+kubectl rollout resume deployment nginx-deploy
+```
+
 ## Renaming nodes
 
 https://www.youtube.com/watch?v=TqoA9HwFLVU
 
+## How to upgrade your Kubernetes Cluster
+
+https://www.youtube.com/watch?v=-MZ-l2HG368
 
 ## Setting up Rancher
 
@@ -2698,6 +3251,8 @@ After that you'll have a nice dashboard and you can:
 
 It is very nice.
 
+## Monitoring Kubernetes Cluster with Rancher 
+
 Then you can continue with this video showing how to install monitoring tools (Prometheus and Grafana) in 1 click.
 
 https://youtu.be/-xEGoiCXavw?t=473
@@ -2707,5 +3262,39 @@ Grafana dashboards are incredibly rich.
 But you don't really need to access grafana itself. The simple fact of activating monitoring
 will make Rancher UI look different and richer.
 
+## Kubernetes Logging with Rancher, Fluentd and Elastic Stack
  
+https://youtu.be/PZHEgNKORbY
+ 
+That video shows the 1-click install and configuration of Fluentd so all Docker logs are redirected to Elasticsearch.
+ 
+That solultion is assuming that containers log to stdout which (according to https://logging.apache.org/log4j/2.x/manual/cloud.html)
+is *the least common denominator [...] guaranteed to work for all applications. However, as with any set of general guidelines, choosing the least common denominator approach comes at a cost.*
+
+The video does not describe how to install Elasticsearch & Kibana inside K8s: they are installed on a non-cluster machine using docker-compose.
+
+But still, implementing that solution is a matter if "docker-compose up -d" and 2 clicks in the Rancher UI.
+
+## Kubernetes alerts to Slack with Rancher
+
+https://www.youtube.com/watch?v=SQH8NukORJM
+
+Rancher has an **Alerts** entry in the **Tools** menu with predefined system alerts:
+* high number of leader change 
+* Node disk is running full within 24h
+* High cpu load
+* High node memory utilization
+* etc...
+
+There are also alerts per namespace.
+
+Rules are based on Prometheus so you have the enable metrics (see above). 
+You can create custom rules based on prometheus metrics.
+
+You can create notifiers with the **Notifiers** entry in the **Tools** menu. There are several options:
+* Slack
+* email
+* webhooks
+* etc...
+
 
