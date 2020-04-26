@@ -8,7 +8,6 @@ https://kubernetes.io/fr/docs/home/
 A huge YouTube Kubernetes playlist and a huge **thank you** to the author of the playlist (this cheat sheet is based on this great content):
 
 https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
-
 - [Kubectl](#kubectl)
   * [Installation](#installation)
   * [Setup bash completion](#setup-bash-completion)
@@ -84,10 +83,10 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [Install NGINX Inc Ingress controller](#install-nginx-inc-ingress-controller)
     + [Demo of  NGINX Inc Ingress controller](#demo-of--nginx-inc-ingress-controller)
     + [Uninstall NGINX Inc Ingress controller](#uninstall-nginx-inc-ingress-controller)
-    + [Install Traefik Ingress Controller](#install-traefik-ingress-controller)
-      - [Install Traefik Ingress Controller v1.7](#install-traefik-ingress-controller-v17)
+  * [Install Traefik Ingress Controller](#install-traefik-ingress-controller)
+    + [Install Traefik Ingress Controller v1.7](#install-traefik-ingress-controller-v17)
     + [Uninstall Traefik Ingress Controller v1.7](#uninstall-traefik-ingress-controller-v17)
-      - [Install Traefik Ingress Controller v2.2, custom resource way](#install-traefik-ingress-controller-v22--custom-resource-way)
+  * [Install Traefik Ingress Controller v2.2, custom resource way](#install-traefik-ingress-controller-v22--custom-resource-way)
   * [Set up MetalLB Load Balancing for Bare Metal Kubernetes](#set-up-metallb-load-balancing-for-bare-metal-kubernetes)
     + [Intro](#intro)
     + [Install MetalLB](#install-metallb)
@@ -3643,7 +3642,7 @@ For the moment we're only going to remove the daemonset:
 kubectl delete -f nginx-ingress.yaml
 ```
 
-### Install Traefik Ingress Controller
+## Install Traefik Ingress Controller
 
 It looks like there are 3 options here: 
 * Traefik v1: https://docs.traefik.io/v1.7/user-guide/kubernetes/
@@ -3652,7 +3651,7 @@ It looks like there are 3 options here:
 
 Difficult to understand the differences for a beginner (like me).
 
-#### Install Traefik Ingress Controller v1.7
+### Install Traefik Ingress Controller v1.7
 
 https://youtu.be/A_PjjCM1eLA?t=471
 
@@ -3711,7 +3710,7 @@ For the moment we're only going to remove the daemonset:
 kubectl delete -f https://raw.githubusercontent.com/containous/traefik/v1.7/examples/k8s/traefik-ds.yaml
 ```
 
-#### Install Traefik Ingress Controller v2.2, custom resource way
+## Install Traefik Ingress Controller v2.2, custom resource way
 
 Official documentation: https://docs.traefik.io/providers/kubernetes-crd/
 
