@@ -3681,6 +3681,12 @@ curl green.nginx.example.com | grep h1
 <h1>I am <font color=green>GREEN</font></h1>
 ```
 
+### Uninstall Traefik Ingress Controller v1.7
+
+For the moment we're only going to remove the daemonset:
+```bash
+kubectl delete -f https://raw.githubusercontent.com/containous/traefik/v1.7/examples/k8s/traefik-ds.yaml
+```
 
 #### Install Traefik Ingress Controller v2.2, custom resource way
 
@@ -3694,5 +3700,133 @@ That blog show the new way of installing Traefik v2. We can see that Traefik has
 
 ## Set up MetalLB Load Balancing for Bare Metal Kubernetes
 
+Excerpt of the official documentation: https://metallb.universe.tf/
+
+*Bare metal cluster operators are left with two lesser tools to bring user traffic into their clusters, “NodePort” and “externalIPs” services. Both of these options have significant downsides for production use, which makes bare metal clusters second class citizens in the Kubernetes ecosystem.*
+
+*MetalLB aims to redress this imbalance by offering a Network LB implementation that integrates with standard network equipment, so that external services on bare metal clusters also “just work” as much as possible.*
+
+It remains to know what are those downsides in order to know what kind of problem MetalLB is trying to solve.
+It might be related to the fact that if you need to add a cluster node, you need to 
+update you HAProxy configuration.
+
+Excerpt of the maturity section: https://metallb.universe.tf/concepts/maturity/
+
+*The majority of code changes, as well as the overall direction of the project, is a **personal endeavor of one person**, working on MetalLB in their spare time as motivation allows.*
+
+*This means that, currently, support and new **feature development is mostly at the mercy of one person’s availability and resources**. You should set your expectations appropriately.*
+ 
+
 https://youtu.be/xYiYIjlAgHY?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
+
+### Intro
+Let's deploy our good old nginx deployment (with 2 replicas):
+```bash
+kubectl create -f 1-nginx-deployment.yaml
+```
+
+Now let's create a service with the LoadBalancer type:
+```bash
+kubectl expose deployment nginx-deploy --port 80 --type LoadBalancer
+```
+Then the service will forever stay in the ``<pending>`` state because the cluster 
+is not in the cloud and we have no such thing:
+```text
+service/nginx-deploy         LoadBalancer   10.233.37.204   <pending>     80:31613/TCP   13s    run=nginx
+```
+So remove it:
+```bash
+kubectl delete service nginx-deploy
+```
+
+### Install MetalLB
+
+Per documentation the installation consists in:
+```bash
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/namespace.yaml
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/metallb.yaml
+# On first install only
+kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
+```
+Now let's have a look at the MetalLB namespace:
+```bash
+kubectl get all -n metallb-system
+```
+```text
+NAME                              READY   STATUS    RESTARTS   AGE
+pod/controller-5c9894b5cd-kh6q5   1/1     Running   0          99s
+pod/speaker-7kfdl                 1/1     Running   0          100s
+pod/speaker-9mrmw                 1/1     Running   0          100s
+pod/speaker-f8z9d                 1/1     Running   0          100s
+
+NAME                     DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR                 AGE
+daemonset.apps/speaker   3         3         3       3            3           beta.kubernetes.io/os=linux   100s
+
+NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/controller   1/1     1            1           100s
+
+NAME                                    DESIRED   CURRENT   READY   AGE
+replicaset.apps/controller-5c9894b5cd   1         1         1       100s
+```
+
+The controller takes care of the address assignment: when you create a service of type LoadBalancer
+this component assigns an IP address for the service.
+
+Speakers make sure you can reach the service through the load balancer IP.
+Speakers are deployed as a daemonset.
+
+Now we need to configure MetalLB using the ``metallb-layer2-config.yaml`` config map:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:  # change the address range so it is a free address range in your network, but in your subnet
+  config: |
+    address-pools:
+    - name: default
+      protocol: layer2
+      addresses: 
+      - 192.168.1.200-192.168.1.250
+```
+```yaml
+kubectl create -f metallb-layer2-config.yaml
+```
+
+### Demo
+
+Now let's create a service with the LoadBalancer type once again:
+```bash
+kubectl expose deployment nginx-deploy --port 80 --type LoadBalancer
+```
+This time the LoadBalancer service has been created with the first address of our range (``192.168.1.240``):
+```text
+NAME                         TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)        AGE    SELECTOR
+service/nginx-deploy         LoadBalancer   10.233.54.89    192.168.1.240   80:31968/TCP   10s    run=nginx
+```
+It means that you have to reserve a portion of your network for load-balancing.
+Now we can access it:
+```bash
+curl 192.168.1.240 | grep title
+```
+```text
+<title>Welcome to nginx!</title>
+```
+It is quite powerful indeed: we're not using any IP address of any node. 
+So you can freely add and remove nodes from your cluster.
+
+
+### Uninstall MetalLB
+
+I tried this:
+```yaml
+kubectl delete ns metallb-system
+```
+But it was still possible to access:
+```bash
+curl 192.168.1.240
+```
+We'll see after a restart of the machines...
+
 
