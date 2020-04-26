@@ -497,7 +497,7 @@ We will quite often see ``ClusterIP`` and ``NodePort`` in yaml files. Those are 
 
 A **ClusterIP** service is reachable only from inside the cluster (between pods).
 
-A **NodePort** service is reachable through any <NodeIP>:NodePort address **even if the pod is not on the node**.
+A **NodePort** service is reachable through any ``NodeIP:NodePort`` address **even if the pod is not on the node**.
 
 That's the magic the Kubernetes network: if there is a single nginx pod on node1, if you setup a NodePort service for it
 (let's say on port 9999) then you will be able to access your nginx with http://node1:9999, http://node2:9999 and http://node3:9999.
