@@ -269,6 +269,9 @@ installed using pip rather than installing ansible from your linux distribution 
 
 https://kubespray.io/#/?id=quick-start
 
+Maybe it should be worth trying the ansible package coming from the Linux distribution
+but I haven't tried (I wanted to play safe for my first install).
+
 For Ansible installation using Python, see: 
 
 https://github.com/bfreuden/ansible-cheat-sheet#using-python
@@ -365,11 +368,22 @@ RAM usage reported by htop is:
 
 CPU usage is around 15% of a core with a idle cluster.
 
+## Update your Ansible inventory
+
+We'll keep on using using Ansible below. To prevent from having to type ``-i inventory/mycluster/hosts.yaml`` let's add 
+this to our ``/etc/ansible/hosts``:
+```ini
+[k8s]
+node1
+node2
+node3
+```
+
 ## Add to kubectl config
 
 Get the kube config from the master:
 ```bash
-ansible -b -i inventory/mycluster/hosts.yaml node1 -m fetch -a "src=/etc/kubernetes/admin.conf flat=true dest=./"
+ansible -b node1 -m fetch -a "src=/etc/kubernetes/admin.conf flat=true dest=./"
 ```
 
 If it is your first kubernetes connection, you can simply copy that file:
@@ -476,6 +490,19 @@ From another terminal you can see the pod being created:
 kubectl get nodes
 kubectl get nodes -o wide
 ```
+
+## ClusterIP and NodePort
+
+We will quite often see ``ClusterIP`` and ``NodePort`` in yaml files. Those are service types.
+
+A **ClusterIP** service is reachable only from inside the cluster (between pods).
+
+A **NodePort** service is reachable through any <NodeIP>:NodePort address **even if the pod is not on the node**.
+
+That's the magic the Kubernetes network: if there is a single nginx pod on node1, if you setup a NodePort service for it
+(let's say on port 9999) then you will be able to access your nginx with http://node1:9999, http://node2:9999 and http://node3:9999.
+
+
 ## Kubernetes Dashboard
 
 After a Kubespray install, the dashboard is installed:
@@ -2038,7 +2065,7 @@ ansible-playbook site.yml
 ```
 And install NFS client on all machines:
 ```bash
-ansible node1,node2,node3 -b -m apt -a "name=nfs-common state=present"
+ansible k8s -b -m apt -a "name=nfs-common state=present"
 ```
 
 Now let's create an NFS PV using this ``4-pv-nfs.yaml`` file:
@@ -2398,7 +2425,7 @@ ansible-playbook site2.yml
 ```
 And install NFS client on all machines:
 ```bash
-ansible node1,node2,node3 -b -m apt -a "name=nfs-common state=present"
+ansible k8s -b -m apt -a "name=nfs-common state=present"
 ```
 
 ### Create PVs
