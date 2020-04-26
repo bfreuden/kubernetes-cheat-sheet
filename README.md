@@ -3341,3 +3341,358 @@ You can create notifiers with the **Notifiers** entry in the **Tools** menu. The
 * etc...
 
 ## Set up Nginx Ingress in Kubernetes Bare Metal
+
+https://youtu.be/chwofyGr80c
+
+When you're opening a Kubernetes service to the outside world, you could use ``NodePort`` services and tell
+users to target any node IP but what will happen if you want to decommission a node? This is where the notion 
+of **Ingress** comes into play.
+
+So far we mentioned ``ClusterIP``, ``NodePort`` and ``Headless`` services (used in statefulsets). 
+There is another type of service: ``LoadBalancer``.
+
+When you're creating a ``LoadBalancer`` service in a Kubernetes cluster in the cloud (Google GKE, Amazon EKS),
+the cloud infrastructure will setup an load-balancer for you (Amazon ELB for instance). For bare metal cluster we have to take care of the load-balancing ourselves.
+
+This is done by:
+* creating a ``ClusterIP`` service for your application (instead of ``NodePort``)
+* setting up an **Ingress Controller** on every node (it might be using a daemonset, but it is not required)
+* deploying an **Ingress Resource**: those are basically rules (when a request arrives at this address, route it to this service)
+* installing an HAProxy (for example) outside of the cluster, dispatching requests to all your nodes
+* create a DNS entry for any service name you want to expose outside the cluster (myapp.example.com, otherapp.example.com) 
+ant point all the entries to the HAProxy address
+
+In that scenario HAProxy will dispatch all requests to nodes of the cluster, and the Ingress controller of each node
+will dispatch the request to the appropriate service: the controller will see that the request was for myapp.example.com,
+it will read the rules defined in Ingress Resource and dispatch the request to the appropriate service.
+
+There are several options for the **Ingress Controller** like Nginx or Traefik.
+
+### Install and configure HAProxy
+
+Let's install HAProxy on our laptop using this ``haproxy.yml`` Ansible playbook:
+```yaml
+- hosts: localhost
+  become: yes
+  vars:
+    haproxy_frontend_name: 'hafrontend'
+    haproxy_frontend_bind_address: '*'
+    haproxy_frontend_port: 80
+    haproxy_frontend_mode: 'http'
+    haproxy_backend_name: 'habackend'
+    haproxy_backend_mode: 'http'
+    haproxy_backend_balance_method: 'roundrobin'
+    haproxy_backend_servers:
+      - name: kube
+        address: node1:80
+      - name: kube
+        address: node2:80
+      - name: kube
+        address: node3:80
+  roles:
+    - { role: geerlingguy.haproxy }
+```
+```bash
+sudo ansible-galaxy install geerlingguy.haproxy
+ansible-playbook haproxy.yml
+# little modification to the generated file
+ansible localhost -b -m replace -a 'path=/etc/haproxy/haproxy.cfg regexp="(.+)cookie kube check" replace="\1"'
+sudo service haproxy restart
+```
+
+### Remarks about NGINX Ingress Controllers
+
+There are two NGINX ingress controllers: one developed by the Kubernetes community, 
+one developed by NGINX Inc and community.
+
+See the differences here:
+
+https://github.com/nginxinc/kubernetes-ingress/blob/master/docs/nginx-ingress-controllers.md
+
+One difference is the support of Websockets that requires a specific configuration with NGINX Inc.
+
+Supported by Kubernetes : https://kubernetes.github.io/ingress-nginx/
+
+Supported by NGINX: https://github.com/nginxinc/kubernetes-ingress
+
+The video is about the latter. 
+
+It looks like that topic is complex for a beginner (like me) since I don't event understand the 
+first paragraph of this page about bare metal considerations:
+
+https://kubernetes.github.io/ingress-nginx/deploy/baremetal/
+
+
+### Install NGINX Inc Ingress controller
+
+There are two ways of installing it: 
+* Using Kubernetes manifests: https://docs.nginx.com/nginx-ingress-controller/installation/installation-with-manifests/ 
+* Using a Helm chart: https://docs.nginx.com/nginx-ingress-controller/installation/installation-with-helm/
+
+The video is about the former.
+
+```bash
+git clone https://github.com/nginxinc/kubernetes-ingress/
+cd kubernetes-ingress/deployments
+git checkout v1.6.3
+# Create a namespace and a service account for the Ingress controller:
+kubectl apply -f common/ns-and-sa.yaml
+# Create a cluster role and cluster role binding for the service account:
+kubectl apply -f rbac/rbac.yaml
+# Create a secret with a TLS certificate and a key for the default server in NGINX:
+kubectl apply -f common/default-server-secret.yaml
+# Create a config map for customizing NGINX configuration:
+kubectl apply -f common/nginx-config.yaml
+# Create custom resource definitions for VirtualServer and VirtualServerRoute resources:
+kubectl apply -f common/custom-resource-definitions.yaml
+```
+
+At this point you have 2 options to deploy the Ingress Controller:
+* either as a Deployment
+* either as a DaemonSet
+
+The video is about the latter.
+```bash
+# as a daemonset
+kubectl apply -f daemon-set/nginx-ingress.yaml
+```
+After a few minutes, you have:
+```bash
+kubectl -n nginx-ingress get all
+```
+```text
+pod/nginx-ingress-cl7p7   1/1     Running   0          7m34s
+pod/nginx-ingress-hzthc   1/1     Running   0          7m34s
+pod/nginx-ingress-p2q9w   1/1     Running   0          7m34s
+
+NAME                           DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+daemonset.apps/nginx-ingress   3         3         3       3            3           <none>          7m34s
+```
+### Demo of  NGINX Inc Ingress controller 
+
+Don't be confused by all those nginx: here we are going to deploy nginx pod that will
+just serve static content. They could have been Apache server. 
+Those will be our services that will be managed by our (nginx) ingress controller.
+ 
+Let's start by a simple 1 replica deployment of nginx (like we used in examples above) and 
+create a ClusterIP service:
+```bash
+kubectl create -f nginx-deploy-main.yaml
+kubectl expose deployment nginx-deploy-main --port 80
+```
+Now we need to create an **Ingress Resource** with the ``ingress-resource-1.yaml`` manifest:
+```yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress  # it's an ingress
+metadata:
+  name: ingress-resource-1
+spec:
+  rules:                       # rules of the ingress
+  - host: nginx.example.com    # every request targeting nginx.example.com
+    http:                      # (http requests...)
+      paths:                   # will be redirected
+      - backend:               # to the backend
+          serviceName: nginx-deploy-main   # implemented by the nginx-deploy-main service
+          servicePort: 80                  # running on port 80
+```
+```bash
+kubectl create -f ingress-resource-1.yaml
+```
+And you can see the ingress:
+```bash
+kubectl get ing
+```
+```text
+NAME                 HOSTS               ADDRESS   PORTS   AGE
+ingress-resource-1   nginx.example.com             80      50s
+```
+Now the last step is to create a DNS entry for nginx.example.com. 
+Note that this DNS entry has to point to HAProxy, that's to say on localhost in this exemple.
+We'll simply do that by editing our ``/etc/hosts`` file:
+```bash
+sudo ansible -b localhost -m lineinfile -a 'dest=/etc/hosts regexp=nginx.example.com line="127.0.0.1 nginx.example.com"'
+```
+And now let's try to connect to our main nginx deployment through HAProxy and NGINX Ingress controller:
+```bash
+curl nginx.example.com | grep title
+``` 
+```text
+<title>Welcome to nginx!</title>
+```
+Now let's delete the ingress:
+```bash
+kubectl delete ing ingress-resource-1
+```
+If we try to connect once again we get a 404 error from the Ingress Controller:
+```bash
+curl nginx.example.com | grep title
+```
+```text
+<head><title>404 Not Found</title></head>
+```
+Now let's create 2 other deployments simply consisting in nginx servers with an index.html 
+page containing "I am blue" and "I am green" (intialized using an Init Container).
+```bash
+kubectl create -f nginx-deploy-blue.yaml
+kubectl create -f nginx-deploy-green.yaml
+``` 
+Let's create a service for them:
+```bash
+kubectl expose deployment nginx-deploy-blue --port 80
+kubectl expose deployment nginx-deploy-green --port 80
+```
+Finally let's create an Ingress Resource for main, blue and green using the ``ingress-resource-2.yaml`` manifest:
+```yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-resource-2
+spec:
+  rules:
+  - host: nginx.example.com
+    http:
+      paths:
+      - backend:
+          serviceName: nginx-deploy-main
+          servicePort: 80
+  - host: blue.nginx.example.com
+    http:
+      paths:
+      - backend:
+          serviceName: nginx-deploy-blue
+          servicePort: 80
+  - host: green.nginx.example.com
+    http:
+      paths:
+      - backend:
+          serviceName: nginx-deploy-green
+          servicePort: 80
+```
+```bash
+kubectl create -f ingress-resource-2.yaml
+```
+Let's describe the ingress:
+```bash
+kubectl  describe ing ingress-resource-2 
+```
+```text
+[...]
+Rules:
+  Host                     Path  Backends
+  ----                     ----  --------
+  nginx.example.com        
+                              nginx-deploy-main:80 (10.233.92.108:80)
+  blue.nginx.example.com   
+                              nginx-deploy-blue:80 (10.233.96.27:80)
+  green.nginx.example.com  
+                              nginx-deploy-green:80 (10.233.92.109:80)
+[...]
+```
+
+Add hosts to ``/etc/hosts`` file:
+```bash
+sudo ansible -b localhost -m lineinfile -a 'dest=/etc/hosts regexp=blue.nginx.example.com line="127.0.0.1 blue.nginx.example.com"'
+sudo ansible -b localhost -m lineinfile -a 'dest=/etc/hosts regexp=green.nginx.example.com line="127.0.0.1 green.nginx.example.com"'
+```
+Then try to get our services:
+```bash
+curl blue.nginx.example.com | grep h1
+```
+```text
+<h1>I am <font color=blue>BLUE</font></h1>
+```
+```bash
+curl green.nginx.example.com | grep h1
+```
+```text
+<h1>I am <font color=green>GREEN</font></h1>
+```
+
+### Uninstall NGINX Inc Ingress controller
+
+Not tested but it should be:
+```bash
+kubectl delete ns nginx-ingress
+```
+
+For the moment we're only going to remove the daemonset:
+```bash
+kubectl delete -f nginx-ingress.yaml
+```
+
+### Install Traefik Ingress Controller
+
+It looks like there are 3 options here: 
+* Traefik v1: https://docs.traefik.io/v1.7/user-guide/kubernetes/
+* Traefik v2: https://docs.traefik.io/providers/kubernetes-ingress/
+* Traefik v2, custom resource way: https://docs.traefik.io/providers/kubernetes-crd/
+
+Difficult to understand the differences for a beginner (like me).
+
+#### Install Traefik Ingress Controller v1.7
+
+https://youtu.be/A_PjjCM1eLA?t=471
+
+The YouTube video is showing the installation of v1:
+```bash
+# this will deploy stuf in the kube-system namespace
+kubectl apply -f https://raw.githubusercontent.com/containous/traefik/v1.7/examples/k8s/traefik-rbac.yaml
+```
+At this point you have 2 options to deploy the Ingress Controller:
+* either as a Deployment
+* either as a DaemonSet
+
+The video is about the latter.
+```bash
+# as a daemonset in the kube-system namespace
+kubectl apply -f https://raw.githubusercontent.com/containous/traefik/v1.7/examples/k8s/traefik-ds.yaml
+```
+
+A few minutes later you have:
+```bash
+kubectl get all -n kube-system   | grep traefik
+```
+```text
+pod/traefik-ingress-controller-jlshz           1/1     Running   0          117s
+pod/traefik-ingress-controller-qklpc           1/1     Running   0          117s
+pod/traefik-ingress-controller-rbw8t           1/1     Running   0          117s
+service/traefik-ingress-service   ClusterIP   10.233.15.146   <none>        80/TCP,8080/TCP          117s
+daemonset.apps/traefik-ingress-controller   3         3         3       3            3           <none>                                               118s
+```
+You can also have a look at Traefik dashboard exported (without any access control!) on the 8080 NodePort:
+
+http://node1:8080/dashboard/
+
+I can see that I've deployed the "v1.7.24 / maroilles" version :-)
+
+Now if you have not removed containers and services created in the 
+Demo of  NGINX Inc Ingress controller paragraph, then you'll directly have:
+
+```bash
+curl blue.nginx.example.com | grep h1
+```
+```text
+<h1>I am <font color=blue>BLUE</font></h1>
+```
+```bash
+curl green.nginx.example.com | grep h1
+```
+```text
+<h1>I am <font color=green>GREEN</font></h1>
+```
+
+
+#### Install Traefik Ingress Controller v2.2, custom resource way
+
+Official documentation: https://docs.traefik.io/providers/kubernetes-crd/
+
+https://blog.wescale.fr/2020/03/06/traefik-2-reverse-proxy-dans-kubernetes/
+
+(not tested) 
+
+That blog show the new way of installing Traefik v2. We can see that Traefik has a nice dashboard.
+
+## Set up MetalLB Load Balancing for Bare Metal Kubernetes
+
+https://youtu.be/xYiYIjlAgHY?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
+

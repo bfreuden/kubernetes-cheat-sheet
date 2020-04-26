@@ -1,0 +1,19 @@
+- hosts: localhost
+  become: yes
+  vars:
+    haproxy_frontend_name: 'hafrontend'
+    haproxy_frontend_bind_address: '*'
+    haproxy_frontend_port: 80
+    haproxy_frontend_mode: 'http'
+    haproxy_backend_name: 'habackend'
+    haproxy_backend_mode: 'http'
+    haproxy_backend_balance_method: 'roundrobin'
+    haproxy_backend_servers:
+      - name: kube
+        address: node1:80
+      - name: kube
+        address: node2:80
+      - name: kube
+        address: node3:80
+  roles:
+    - { role: geerlingguy.haproxy }
