@@ -9,7 +9,6 @@ A huge YouTube Kubernetes playlist and a huge **thank you** to the author of the
 
 https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
 
-
 - [Kubectl](#kubectl)
   * [Installation](#installation)
   * [Setup bash completion](#setup-bash-completion)
@@ -26,10 +25,12 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [Kubernetes dashboard](#kubernetes-dashboard-1)
     + [Agent node](#agent-node-1)
     + [Server node](#server-node-1)
-- [K8s](#k8s)
+- [K8s on bare metal](#k8s-on-bare-metal)
   * [Install with kubespray](#install-with-kubespray)
+  * [Update your Ansible inventory](#update-your-ansible-inventory)
   * [Add to kubectl config](#add-to-kubectl-config-1)
   * [First connection](#first-connection)
+  * [ClusterIP vs. NodePort](#clusterip-vs-nodeport)
   * [Kubernetes Dashboard](#kubernetes-dashboard)
 - [Learn Kubernetes](#learn-kubernetes)
   * [Running docker containers](#running-docker-containers)
@@ -55,6 +56,7 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [Migrating from Helm 2.x](#migrating-from-helm-2x)
   * [Installing Jenkins in Kubernetes using Helm](#installing-jenkins-in-kubernetes-using-helm)
   * [Configuring Jenkins to connect to Kubernetes](#configuring-jenkins-to-connect-to-kubernetes)
+  * [Jenkins CI CD Pipeline in Kubernetes](#jenkins-ci-cd-pipeline-in-kubernetes)
   * [Dynamically provision NFS persistent volumes](#dynamically-provision-nfs-persistent-volumes)
   * [Secrets](#secrets)
   * [Statefulsets](#statefulsets)
@@ -76,6 +78,21 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
   * [Monitoring Kubernetes Cluster with Rancher](#monitoring-kubernetes-cluster-with-rancher)
   * [Kubernetes Logging with Rancher, Fluentd and Elastic Stack](#kubernetes-logging-with-rancher--fluentd-and-elastic-stack)
   * [Kubernetes alerts to Slack with Rancher](#kubernetes-alerts-to-slack-with-rancher)
+  * [Set up Nginx Ingress in Kubernetes Bare Metal](#set-up-nginx-ingress-in-kubernetes-bare-metal)
+    + [Install and configure HAProxy](#install-and-configure-haproxy)
+    + [Remarks about NGINX Ingress Controllers](#remarks-about-nginx-ingress-controllers)
+    + [Install NGINX Inc Ingress controller](#install-nginx-inc-ingress-controller)
+    + [Demo of  NGINX Inc Ingress controller](#demo-of--nginx-inc-ingress-controller)
+    + [Uninstall NGINX Inc Ingress controller](#uninstall-nginx-inc-ingress-controller)
+    + [Install Traefik Ingress Controller](#install-traefik-ingress-controller)
+      - [Install Traefik Ingress Controller v1.7](#install-traefik-ingress-controller-v17)
+    + [Uninstall Traefik Ingress Controller v1.7](#uninstall-traefik-ingress-controller-v17)
+      - [Install Traefik Ingress Controller v2.2, custom resource way](#install-traefik-ingress-controller-v22--custom-resource-way)
+  * [Set up MetalLB Load Balancing for Bare Metal Kubernetes](#set-up-metallb-load-balancing-for-bare-metal-kubernetes)
+    + [Intro](#intro)
+    + [Install MetalLB](#install-metallb)
+    + [Demo](#demo)
+    + [Uninstall MetalLB](#uninstall-metallb)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -2228,6 +2245,12 @@ https://youtu.be/V4kYbHlQYHg
 
 (not watched yet)
 
+## Jenkins CI CD Pipeline in Kubernetes 
+
+https://www.youtube.com/watch?v=4E80gEen-o0
+
+(not watched yet)
+
 ## Dynamically provision NFS persistent volumes
 
 https://youtu.be/AavnQzWDTEk?t=63
@@ -3828,5 +3851,4 @@ But it was still possible to access:
 curl 192.168.1.240
 ```
 We'll see after a restart of the machines...
-
 
