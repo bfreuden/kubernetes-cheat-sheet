@@ -2214,11 +2214,15 @@ This procedure is described here: https://youtu.be/aAPtT4uaY1o
 
 https://youtu.be/ObGR0EfVPlg
 
+(not watched yet)
+
 ## Configuring Jenkins to connect to Kubernetes
 
 https://youtu.be/DAe2Md9sGNA
 
 https://youtu.be/V4kYbHlQYHg
+
+(not watched yet)
 
 ## Dynamically provision NFS persistent volumes
 
@@ -3231,9 +3235,13 @@ kubectl rollout resume deployment nginx-deploy
 
 https://www.youtube.com/watch?v=TqoA9HwFLVU
 
+(not watched yet)
+
 ## How to upgrade your Kubernetes Cluster
 
 https://www.youtube.com/watch?v=-MZ-l2HG368
+
+(not watched yet)
 
 ## Setting up Rancher
 
@@ -3292,6 +3300,8 @@ will make Rancher UI look different and richer.
 ## Kubernetes Logging with Rancher, Fluentd and Elastic Stack
  
 https://youtu.be/PZHEgNKORbY
+
+(not tested yet)
  
 That video shows the 1-click install and configuration of Fluentd so all Docker logs are redirected to Elasticsearch.
  
@@ -3305,6 +3315,8 @@ But still, implementing that solution is a matter if "docker-compose up -d" and 
 ## Kubernetes alerts to Slack with Rancher
 
 https://www.youtube.com/watch?v=SQH8NukORJM
+
+(not tested yet)
 
 Rancher has an **Alerts** entry in the **Tools** menu with predefined system alerts:
 * high number of leader change 
