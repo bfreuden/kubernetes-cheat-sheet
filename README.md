@@ -260,7 +260,7 @@ kubectl delete ns kubernetes-dashboard
 /usr/local/bin/k3s-uninstall.sh
 ```
 
-# K8s
+# K8s on bare metal
 
 ## Install with kubespray
 
@@ -404,7 +404,7 @@ export KUBECONFIG=~/.kube/config.bak:admin.conf
 kubectl config view --flatten > ~/.kube/config
 unset KUBECONFIG
 ```
-Note that we leveraging the KUBECONFIG environment variable that is containing a list of config files.
+Note that we leveraging the ``KUBECONFIG`` environment variable that is containing a list of config files.
 Kubetcl will virtually merge those files. The default context will be the default context of the first file.
 
 Now you should see all contexts:
@@ -467,7 +467,7 @@ calico-kube-controllers-7485f77d57-xljcf   1/1     Running   3          2d5h
 calico-node-6n4vb                          1/1     Running   4          2d5h
 etc...
 ```
-Now let's check the network communications (--rm to remove when we are done):
+Now let's check the network communications (``--rm`` to remove the pod when we are done):
 ```bash
 kubectl run myshell -it --rm --image busybox -- sh
 # get the IP of the myshell pod
@@ -495,16 +495,18 @@ kubectl get nodes
 kubectl get nodes -o wide
 ```
 
-## ClusterIP and NodePort
+## ClusterIP vs. NodePort
 
 We will quite often see ``ClusterIP`` and ``NodePort`` in yaml files. Those are service types.
 
-A **ClusterIP** service is reachable only from inside the cluster (between pods).
+A **ClusterIP** service is reachable only from inside the cluster (between pods). So you can't connect to the service from the outside of the cluster.
 
-A **NodePort** service is reachable through any ``NodeIP:NodePort`` address **even if the pod is not on the node**.
+A **NodePort** service is reachable from the outside of the cluster through any ``NodeIP:NodePort`` address **even if the pod is not on the node**.
 
-That's the magic the Kubernetes network: if there is a single nginx pod on node1, if you setup a NodePort service for it
-(let's say on port 9999) then you will be able to access your nginx with http://node1:9999, http://node2:9999 and http://node3:9999.
+That's the magic the Kubernetes network: 
+if there is a single nginx pod on node1, 
+and if you setup a NodePort service for it (let's say on port 9999) 
+then you will be able to access your nginx with http://node1:9999, http://node2:9999 and http://node3:9999.
 
 
 ## Kubernetes Dashboard
@@ -620,11 +622,9 @@ https://node1:30446/
 
 # Learn Kubernetes
 
-The content of this paragraph is directly coming from this playlist:
+The content of this paragraph is directly coming from the playlist mentioned in the intro:
 
 https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
-
-The author has done a marvelous job with that video series. I'm thanking him for that.
 
 ## Running docker containers
 
@@ -3340,4 +3340,4 @@ You can create notifiers with the **Notifiers** entry in the **Tools** menu. The
 * webhooks
 * etc...
 
-
+## Set up Nginx Ingress in Kubernetes Bare Metal
