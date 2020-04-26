@@ -166,6 +166,9 @@ It is using less CPU than K8s and memory footprint is low enough to fit in a Ras
 
 https://k3s.io/
 
+I would certainly consider K3s as an option to start with Kubernetes on a laptop because of its low resource usage 
+and its trivial install/uninstall procedure (but I'd like to give Microk8s a try before concluding).
+
 ## Installation 
 
 Installation is very easy and very quick (2 minutes).
