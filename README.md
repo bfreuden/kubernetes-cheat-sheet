@@ -8,6 +8,7 @@ https://kubernetes.io/fr/docs/home/
 A huge YouTube Kubernetes playlist and a huge **thank you** to the author of the playlist (this cheat sheet is based on this great content):
 
 https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
+
 - [Kubectl](#kubectl)
   * [Installation](#installation)
   * [Setup bash completion](#setup-bash-completion)
@@ -92,6 +93,10 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [Install MetalLB](#install-metallb)
     + [Demo](#demo)
     + [Uninstall MetalLB](#uninstall-metallb)
+  * [Using Horizontal Pod Autoscaler](#using-horizontal-pod-autoscaler)
+    + [Metrics-server installation](#metrics-server-installation)
+    + [Setup HPA demo](#setup-hpa-demo)
+    + [Demo HPA](#demo-hpa)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -3850,4 +3855,219 @@ But it was still possible to access:
 curl 192.168.1.240
 ```
 We'll see after a restart of the machines...
+
+Still working after the restart of all machines (cluster nodes and laptop)!
+
+We'll see after a restart of the router...
+
+We won't see because I have deleted my ``LoadBalancer`` service:
+```bash
+kubectl delete service nginx-deploy
+```
+But still:
+```bash
+ping 192.168.1.240
+```
+```text
+PING 192.168.1.240 (192.168.1.240) 56(84) bytes of data.
+From 192.168.1.12: icmp_seq=2 Redirect Host(New nexthop: 192.168.1.240)
+From 192.168.1.12: icmp_seq=3 Redirect Host(New nexthop: 192.168.1.240)
+```
+
+## Using Horizontal Pod Autoscaler
+
+https://youtu.be/uxuyPru3_Lc
+
+Kubernetes can detect CPU load and automatically increase the number of replicas of a replicaset.
+Whene CPU utilization is going down, it will automatically reduce the number of replicas.
+
+Kubernetes has a notion of **cooling period**: it will wait 3 minutes before taking any
+scale-up action, and 5 minutes before any scale-down action. CPU utilization is measured
+every 5 seconds.
+
+This can be done by deploying an **Horizontal Pod Autoscaler** (HPA). HPA depends
+on **metrics-server**, so it must installed in the cluster.
+
+### Metrics-server installation
+
+Official documentation: https://github.com/kubernetes-sigs/metrics-server
+
+Check if metrics-server is installed with:
+```bash
+kubectl top pods
+```
+If you got an error, it is not installed.
+
+The installation procedure described in the video is outdated.
+
+```bash
+wget -O metrics-server-component.yaml https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.3.6/components.yaml
+```
+Then edit the file to add a ``--kubelet-insecure-tls`` command-line option to the metrics server container 
+(this is a bad practise but that's ok for a demo cluster):
+```yaml
+      containers:
+      - name: metrics-server
+        image: k8s.gcr.io/metrics-server-amd64:v0.3.6
+        imagePullPolicy: IfNotPresent
+        args:
+          - --cert-dir=/tmp
+          - --secure-port=4443
+          - --kubelet-insecure-tls     # new line
+```
+And finally apply the manifest:
+```bash
+kubectl create -f  metrics-server-component.yaml
+```
+It will create some stuff in the ``kube-system`` namespace.
+
+After the installation the top command is running:
+```bash
+kubectl top pods
+```
+```text
+NAME                                  CPU(cores)   MEMORY(bytes)   
+nginx-deploy-6db489d4b7-5rzlp         0m           2Mi             
+nginx-deploy-6db489d4b7-m8vvd         0m           2Mi             
+nginx-deploy-blue-7979fc74d8-cbcnl    0m           3Mi             
+nginx-deploy-green-7c67575d6c-5bnq5   0m           2Mi             
+nginx-deploy-main-7cc547b6f7-j7dmk    0m           2Mi             
+```
+```bash
+kubectl top nodes
+```
+```text
+NAME    CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%     
+node2   430m         11%    1267Mi          17%         
+node3   283m         7%     1056Mi          6%          
+node1   <unknown>                           <unknown>               <unknown>               <unknown>               
+```
+If you have many ``<unknown>`` problem, then you might want to edit the file to add a ``--kubelet-preferred-address-types`` command-line option to the metrics server container.
+Possible values are: ``Hostname``, ``InternalDNS``, ``InternalIP``, ``ExternalDNS``, ``ExternalIP``
+
+In my situation I don't understand the issue, but I guess it has something to do with this:
+
+*So it was my fault. I have Bare Metal cluster so all my InternalIPs are external ones. But that was the node which hold the metrics server itself so it tried to request stats via internal source - external destination. Anyway - fixed my FW and now all is ok.*
+https://github.com/kubernetes-sigs/metrics-server/issues/165  
+
+### Setup HPA demo
+
+Let's create an nginx deployment with the ``10-nginx-deployment-cpulimit.yaml`` manifest and create a NodePort service:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: nginx
+  name: nginx-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: nginx
+  template:
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      containers:
+        - image: nginx
+          name: nginx
+          resources:    # you MUST specify limits (either memory or cpu) to use HPA
+            limits:
+              cpu: "100m"  # 10% of a CPU core
+            requests:
+              cpu: "100m"  # 10% of a CPU core
+```
+```bash
+kubectl create -f 10-nginx-deployment-cpulimit.yaml
+kubectl expose deployment nginx-deploy --port 80 --type NodePort
+kubectl describe svc nginx-deploy | grep NodePort
+```
+```text
+NodePort:                 <unset>  32765/TCP
+```
+So now your nginx is accessible on http://node1:32765
+
+Let's create the HPA using the ``10-hpa.yaml`` manifest:
+```yaml
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nginx-deploy
+spec:
+  maxReplicas: 5
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nginx-deploy
+  targetCPUUtilizationPercentage: 20
+```
+```bash
+kubectl create -f 10-hpa.yaml
+```
+Or you can create it on command-line:
+```bash
+kubectl autoscale deployment nginx-deploy --min=1 --max=5 --cpu-percent=20
+```
+You can see the curent CPU usage and the target in the output of  ``kubectl get all -o wide``:
+```text
+NAME                                               REFERENCE                 TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/nginx-deploy   Deployment/nginx-deploy   0%/20%    1         5         1          3m14s
+```
+If you see ``<unknown>/20% `` there is a problem (it happened to me when creating the HPA from the manifest instead of with the command-line):
+```text
+NAME                                               REFERENCE                 TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/nginx-deploy   Deployment/nginx-deploy   <unknown>/20%   1         5         1          29s
+```
+
+If you don't specify limits on your deployment, you get this kind of (silent) error:
+```bash
+kubectl describe hpa nginx-deploy | grep ScalingActive
+```
+```text
+ScalingActive  False   FailedGetResourceMetric  the HPA was unable to compute the replica count: missing request for cpu
+```
+
+### Demo HPA
+
+First let's install **siege**:
+```text
+sudo apt install siege
+```
+Then let's put some load on our nginx:
+```bash
+siege -q -c 5 -t 2m http://node1:32765
+```
+A few seconds later you can see new pods appearing and the HPA above targets:
+```text
+NAME                                      READY   STATUS              RESTARTS   AGE
+pod/nginx-deploy-64c97f587-j42dq          1/1     Running             0          23m
+pod/nginx-deploy-64c97f587-zrgxz          0/1     ContainerCreating   0          6s
+pod/nginx-deploy-64c97f587-ztsgb          1/1     Running             0          6s
+
+NAME                         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+service/nginx-deploy         NodePort    10.233.48.97    <none>        80:32765/TCP   23m
+
+NAME                                 READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/nginx-deploy         2/3     3            2           23m
+
+NAME                                            DESIRED   CURRENT   READY   AGE
+replicaset.apps/nginx-deploy-64c97f587          3         3         2       23m
+
+NAME                                               REFERENCE                 TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/nginx-deploy   Deployment/nginx-deploy   54%/20%   1         5         1          10m
+```
+
+However I've not been able to observe the scale-down (I waited 12 minutes after stopping siege).
+
+Maybe it has something to do with metrics-server not able to get metrics from node1.
+
+Cleanup:
+```bash
+kubectl delete hpa nginx-deploy
+kubectl delete svc nginx-deploy
+kubectl delete deploy nginx-deploy
+``` 
 
