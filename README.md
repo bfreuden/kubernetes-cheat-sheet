@@ -97,6 +97,10 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [Metrics-server installation](#metrics-server-installation)
     + [Setup HPA demo](#setup-hpa-demo)
     + [Demo HPA](#demo-hpa)
+  * [Pod auto-scaling based on memory utilization](#pod-auto-scaling-based-on-memory-utilization)
+  * [Useful Tools - kube-ops-view and kubebox](#useful-tools---kube-ops-view-and-kubebox)
+    + [kube-ops-view](#kube-ops-view)
+    + [kubebox](#kubebox)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
