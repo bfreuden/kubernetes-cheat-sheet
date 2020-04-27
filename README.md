@@ -3950,6 +3950,8 @@ In my situation I don't understand the issue, but I guess it has something to do
 *So it was my fault. I have Bare Metal cluster so all my InternalIPs are external ones. But that was the node which hold the metrics server itself so it tried to request stats via internal source - external destination. Anyway - fixed my FW and now all is ok.*
 https://github.com/kubernetes-sigs/metrics-server/issues/165  
 
+I finally fixed it with ``--kubelet-preferred-address-types=InternalIP``
+
 ### Setup HPA demo
 
 Let's create an nginx deployment with the ``10-nginx-deployment-cpulimit.yaml`` manifest and create a NodePort service:
@@ -4064,6 +4066,15 @@ However I've not been able to observe the scale-down (I waited 12 minutes after 
 
 Maybe it has something to do with metrics-server not able to get metrics from node1.
 
+Yes it was!
+
+After a correct metrics-server setup, it took 7 minutes but I've seen the HPA scaling down pods:
+```text
+NAME                                      READY   STATUS        RESTARTS   AGE     IP              NODE    NOMINATED NODE   READINESS GATES
+pod/nginx-deploy-64c97f587-fs6dd          1/1     Terminating   0          6m51s   10.233.96.38    node2   <none>           <none>
+pod/nginx-deploy-64c97f587-jc8rx          1/1     Running       0          9m21s   10.233.92.120   node3   <none>           <none>
+```
+
 Cleanup:
 ```bash
 kubectl delete hpa nginx-deploy
@@ -4075,7 +4086,7 @@ kubectl delete deploy nginx-deploy
 
 https://youtu.be/KS5MzK4EDg8
 
-You can also auto scale based on memory limits.
+You can also use HPA to auto scale based on memory limits.
 
 (not tested)
 
