@@ -4071,3 +4071,12 @@ kubectl delete svc nginx-deploy
 kubectl delete deploy nginx-deploy
 ``` 
 
+## Pod auto-scaling based on memory utilization
+
+https://youtu.be/KS5MzK4EDg8
+
+You can also auto scale based on memory limits.
+
+(not tested)
+
+
