@@ -4091,3 +4091,34 @@ You can also use HPA to auto scale based on memory limits.
 (not tested)
 
 
+## Useful Tools - kube-ops-view and kubebox
+
+https://youtu.be/auVLHYSZM_A
+
+Both tools offer a nice alternative to:
+```bash
+watch kubectl get all -o wide
+```
+
+### kube-ops-view
+
+It offers a nice old-school graphical overview you your cluster. 
+It requires to install stuff in your cluster though.
+
+(not tested)
+
+### kubebox
+
+Official site: https://github.com/astefanutti/kubebox
+
+It is a command-line tool with a terminal UI like htop allowing to
+browse in namespaces, pods, pods logs...
+
+Install:
+```bash
+sudo curl -Lo /usr/local/bin/kubebox https://github.com/astefanutti/kubebox/releases/download/v0.8.0/kubebox-linux && sudo chmod +x /usr/local/bin/kubebox
+```
+It will work as is but it expects cAdvisor to be deployed as a DaemonSet in order to display CPU, RAM and Net pod metrics:
+```bash
+kubectl apply -f https://raw.github.com/astefanutti/kubebox/master/cadvisor.yaml
+```
