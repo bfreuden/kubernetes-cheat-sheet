@@ -101,6 +101,11 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
   * [Useful Tools - kube-ops-view and kubebox](#useful-tools---kube-ops-view-and-kubebox)
     + [kube-ops-view](#kube-ops-view)
     + [kubebox](#kubebox)
+  * [Setup Let's Encrypt cert-manager in Kubernetes Bare Metal](#setup-let-s-encrypt-cert-manager-in-kubernetes-bare-metal)
+    + [Install NGINX Inc ingress controller](#install-nginx-inc-ingress-controller)
+    + [Install HAProxy](#install-haproxy)
+    + [Install cert-manager](#install-cert-manager)
+    + [cert-manager demo](#cert-manager-demo)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -2201,7 +2206,9 @@ Official documentation: https://helm.sh/
 
 Normally when you want to deploy an application you're writing yaml files and using kubectl to create corresponding 
 resources in the cluster. Helms brings some standardization, documentation so it is easier for people to deploy applications in Kubernetes.
-You can think of Helm as a package manager. 
+You can think of Helm as a package manager.
+
+Hub of Helm packages: https://hub.helm.sh/ 
 
 A **chart** is a Helm package. It contains all of the resource definitions necessary to run an application, tool, or service inside of a Kubernetes cluster.
 Charts come with default values, but Helm make it possible to easily override those values (using command-line or files).
@@ -3482,7 +3489,7 @@ At this point you have 2 options to deploy the Ingress Controller:
 * either as a Deployment
 * either as a DaemonSet
 
-The video is about the latter.
+The video is about the latter:
 ```bash
 # as a daemonset
 kubectl apply -f daemon-set/nginx-ingress.yaml
@@ -3648,7 +3655,7 @@ kubectl delete ns nginx-ingress
 
 For the moment we're only going to remove the daemonset:
 ```bash
-kubectl delete -f nginx-ingress.yaml
+kubectl delete -f daemon-set/nginx-ingress.yaml
 ```
 
 ## Install Traefik Ingress Controller
@@ -4126,3 +4133,152 @@ It will work as is but it expects cAdvisor to be deployed as a DaemonSet in orde
 ```bash
 kubectl apply -f https://raw.github.com/astefanutti/kubebox/master/cadvisor.yaml
 ```
+
+## Setup Let's Encrypt cert-manager in Kubernetes Bare Metal
+
+https://youtu.be/Hwqm1D2EfFU
+
+That video show how to setup a cert-manager inside the Kubernetes cluster
+that will automatically get TLS certificates for web services running in the cluster.
+
+The setup described below has the following properties:
+* HAProxy will listen on 443 and is configured in tcp mode (not http mode)
+* HAProxy will not have a certificate (no certificate validation will be done on HAProxy)
+* web service runnning in the cluster will listen on port 80 (without TLS)
+* between HAProxy and the webservice there will be an NGINX Inc Ingress controller
+* the NGINX Inc Ingress controller will get a staging TLS certificate from Let's Encrypt
+
+Staging certificates (as opposed to prod certificates) won't acutally be signed by Let's Encrypt.
+So this video is not so interesting... but let's try it anyway, just to see if the process is working.
+
+### Install NGINX Inc ingress controller 
+
+(see above)
+
+### Install HAProxy
+
+(see above)
+
+Just add the following lines to haproxy.conf (in addition to http:80 frontend and backend):
+```text
+frontend http_front
+  bind *:443
+  mode tcp
+  option tcplog
+  default_backend http_back
+
+backend http_back
+  mode tcp
+  balance roundrobin
+  server kube node1:443
+  server kube node2:443
+  server kube node3:443
+```
+### Install cert-manager 
+
+We'll be using the Jetstack cert-manager
+
+https://hub.helm.sh/charts/jetstack/cert-manager
+
+First install CustomResourceDefinitions:
+```bash
+# nstall the cert-manager CustomResourceDefinition resources
+kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v0.15.0-alpha.2/cert-manager.crds.yaml
+# Add the Jetstack Helm repository 
+helm repo add jetstack https://charts.jetstack.io
+# check its ok
+helm repo list
+# create the namespace
+kubectl create ns cert-manager
+# Install the cert-manager helm chart with Helm 3
+helm install --namespace cert-manager cert-manager  jetstack/cert-manager
+```
+### cert-manager demo
+
+First deploy the ClusterIssuer resource with the ``11-ClusterIssuer.yaml`` manifest
+```yaml
+apiVersion: cert-manager.io/v1alpha2
+kind: Issuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory # staging API
+    email: user@example.com  # you must put your email here
+    privateKeySecretRef:
+      name: letsencrypt-staging  # must match the secret name of the Ingress
+    solvers:
+    - http01:
+       ingress:
+         class: nginx
+```
+```bash
+kubectl create -f 11-ClusterIssuer.yaml
+```
+
+Then create a simple nginx deployment and service:
+```bash
+kubectl create deployment nginx --image nginx
+kubectl expose deploy nginx --port 80
+```
+Finally create the Ingress using the ``11-ingress-resource.yaml`` manifest:
+```yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: nginx-ingress-resource
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging # must match the name of the issuer
+spec:
+  tls:
+    - hosts:
+        - nginx.example.com
+      secretName: letsencrypt-staging  # the name of the secret
+  rules:
+    - host: nginx.example.com
+      http:
+        paths:
+          - backend:
+              serviceName: nginx  # name of the service created above
+              servicePort: 80
+```
+```bash
+kubectl create -f 11-ingress-resource.yaml
+```
+Then if you describe the ingress, you'll see in the events that the certificate has been generated:
+```bash
+kubectl describe ingresses nginx-ingress-resource | tail -n4
+```
+```text
+[...]
+Events:
+  Type    Reason             Age   From          Message
+  ----    ------             ----  ----          -------
+  Normal  CreateCertificate  14s   cert-manager  Successfully created Certificate "letsencrypt-staging"
+```
+Then you can list certificates:
+```bash
+kubectl get certificates
+```
+```text
+NAME                  READY   SECRET                AGE
+letsencrypt-staging   False   letsencrypt-staging   4m36s
+```
+And you can describe your certificate to know the DNS name etc...
+```bash
+kubectl describe certificate letsencrypt-staging
+```
+Finally put this line in your /etc/hosts:
+```text
+127.0.0.1 nginx.example.com
+```
+
+And test:
+```bash
+curl  https://nginx.example.com
+```
+It doesn't work for me:
+```text
+curl: (35) error:14094410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure
+```
+
