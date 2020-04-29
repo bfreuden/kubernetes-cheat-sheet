@@ -1,13 +1,13 @@
 apiVersion: cert-manager.io/v1alpha2
 kind: Issuer
 metadata:
-  name: letsencrypt-staging
+  name: letsencrypt-prod
 spec:
   acme:
-    server: https://acme-staging-v02.api.letsencrypt.org/directory # staging API
+    server: https://acme-v02.api.letsencrypt.org/directory # prod API
     email: user@example.com
     privateKeySecretRef:
-      name: letsencrypt-staging  # must match the secret name of the Ingress
+      name: letsencrypt-prod  # must match the secret name of the Ingress
     solvers:
       - http01:
           ingress:

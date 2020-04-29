@@ -106,6 +106,7 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [Install HAProxy](#install-haproxy)
     + [Install cert-manager](#install-cert-manager)
     + [cert-manager demo](#cert-manager-demo)
+  * [Deploy and use Nginx ingress controller](#deploy-and-use-nginx-ingress-controller)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -4178,7 +4179,9 @@ backend http_back
 
 We'll be using the Jetstack cert-manager
 
-https://hub.helm.sh/charts/jetstack/cert-manager
+Official documentation: https://cert-manager.io/docs/installation/kubernetes/
+
+cert-manager on Helm Hub: https://hub.helm.sh/charts/jetstack/cert-manager
 
 First install CustomResourceDefinitions:
 ```bash
@@ -4193,6 +4196,23 @@ kubectl create ns cert-manager
 # Install the cert-manager helm chart with Helm 3
 helm install --namespace cert-manager cert-manager  jetstack/cert-manager
 ```
+You can check the installation by creating test resources provided by cert-manager:
+```bash
+kubectl create -f 11-test-resources.yaml
+kubectl describe certificate -n cert-manager-test | tail -n5
+```
+```text
+Type    Reason        Age    From          Message
+----    ------        ----   ----          -------
+Normal  GeneratedKey  3m22s  cert-manager  Generated a new private key
+Normal  Requested     3m22s  cert-manager  Created new CertificateRequest resource "selfsigned-cert-504566127"
+Normal  Issued        3m22s  cert-manager  Certificate issued successfully
+```
+Cleanup:
+```bash
+kubectl delete -f 11-test-resources.yaml
+```
+
 ### cert-manager demo
 
 First deploy the ClusterIssuer resource with the ``11-ClusterIssuer.yaml`` manifest
@@ -4282,3 +4302,180 @@ It doesn't work for me:
 curl: (35) error:14094410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure
 ```
 
+To be continued in paragraph below...
+
+## Deploy and use Nginx ingress controller
+
+https://www.youtube.com/watch?v=2VUQ4WjLxDg
+
+This time we're going to install the Kubernetes-supported nginx ingress controller
+(last time we installed the ingress controller supported by NGINX Inc).
+
+Prerequisites: 
+* this ingress controller requires the MetalLB load balancer: see [Install MetalLB](#install-metallb)
+* you must comment any line of ``/etc/hosts`` resolving *nginx.example.com to HAProxy IP
+* last https example requires the install of cert-manager: see [Install cert-manager](#install-cert-manager)
+
+The video content is outdated now (using Helm 2), so we will follow the official guide:
+
+https://kubernetes.github.io/ingress-nginx/deploy/#bare-metal 
+
+We're going to do this with Helm 3.
+
+```bash
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+kubectl create ns ingress-nginx
+helm install --namespace ingress-nginx ingress-nginx ingress-nginx/ingress-nginx
+```
+After the install it shows:
+```text
+NAME: ingress-nginx
+LAST DEPLOYED: Wed Apr 29 20:13:17 2020
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+The ingress-nginx controller has been installed.
+It may take a few minutes for the LoadBalancer IP to be available.
+You can watch the status by running 'kubectl --namespace default get services -o wide -w ingress-nginx-controller'
+
+An example Ingress that makes use of the controller:
+
+  apiVersion: networking.k8s.io/v1beta1
+  kind: Ingress
+  metadata:
+    annotations:
+      kubernetes.io/ingress.class: nginx
+    name: example
+    namespace: foo
+  spec:
+    rules:
+      - host: www.example.com
+        http:
+          paths:
+            - backend:
+                serviceName: exampleService
+                servicePort: 80
+              path: /
+    # This section is only required if TLS is to be enabled for the Ingress
+    tls:
+        - hosts:
+            - www.example.com
+          secretName: example-tls
+
+If TLS is enabled for the Ingress, a Secret containing the certificate and key must also be provided:
+
+  apiVersion: v1
+  kind: Secret
+  metadata:
+    name: example-tls
+    namespace: foo
+  data:
+    tls.crt: <base64 encoded cert>
+    tls.key: <base64 encoded key>
+  type: kubernetes.io/tls
+```
+Then wait for the External IP to be available:
+```bash
+kubectl --namespace ingress-nginx get services -o wide -w ingress-nginx-controller
+```
+```text
+NAME                       TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)                      AGE   SELECTOR
+ingress-nginx-controller   LoadBalancer   10.233.31.191   192.168.1.240   80:30080/TCP,443:31403/TCP   82s   app.kubernetes.io/component=controller,app.kubernetes.io/instance=ingress-nginx,app.kubernetes.io/name=ingress-nginx
+```
+Let's create our blue and green deployments and services once again:
+```bash
+kubectl create -f nginx-deploy-blue.yaml
+kubectl create -f nginx-deploy-green.yaml
+kubectl expose deployment nginx-deploy-blue --port 80
+kubectl expose deployment nginx-deploy-green --port 80
+```
+But now we need to add a special annotation to our ``12-ingress-resource-4.yaml`` Ingress manifest:
+```yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-resource-4
+  annotations:
+    kubernetes.io/ingress.class: nginx # this annotation is required by ingress-nginx
+spec:
+  rules:
+  - host: blue.nginx.example.com
+    http:
+      paths:
+      - backend:
+          serviceName: nginx-deploy-blue
+          servicePort: 80
+  - host: green.nginx.example.com
+    http:
+      paths:
+      - backend:
+          serviceName: nginx-deploy-green
+          servicePort: 80
+```
+```bash
+kubectl create -f 12-ingress-resource-4.yaml
+```
+Now we need to know the external IP of our LoadBalancer:
+```bash
+kubectl -n ingress-nginx get services | grep -v ClusterIP
+```
+```text
+NAME                                 TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)                      AGE
+ingress-nginx-controller             LoadBalancer   10.233.31.191   192.168.1.240   80:30080/TCP,443:31403/TCP   147m
+```
+Add this IP to your ``/etc/hosts``:
+```text
+192.168.1.240 blue.nginx.example.com
+192.168.1.240 green.nginx.example.com
+192.168.1.240 nginx.example.com
+```
+And it works:
+```bash
+curl blue.nginx.example.com
+curl green.nginx.example.com
+```
+```text
+<h1>I am <font color=blue>BLUE</font></h1>
+<h1>I am <font color=green>GREEN</font></h1>
+```
+
+Now let's try https and self-signed certificate creation.
+
+Let's deploy the ``12-ingress-resource.yaml`` ingress manifest:
+```yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: nginx-ingress-resource
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging # must match the name of the issuer
+    kubernetes.io/ingress.class: nginx  # this annotation is required by ingress-nginx
+spec:
+  tls:
+    - hosts:
+        - nginx.example.com
+      secretName: letsencrypt-staging  # the name of the secret
+  rules:
+    - host: nginx.example.com
+      http:
+        paths:
+          - backend:
+              serviceName: nginx  # name of the service created above
+              servicePort: 80
+```
+And it works:
+```bash
+curl -k https://nginx.example.com | grep title
+```
+```text
+<title>Welcome to nginx!</title>
+```
+
+Now let's try with a real certificate (not working yet):
+```bash
+kubectl create deployment realdomain-nginx --image ngnix
+kubectl expose deployment realdomain-nginx --port 80
+kubectl create -f 12-realdomain-ingress-resource.yaml
+```

@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: nginx-ingress-resource
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging # must match the name of the issuer
+    kubernetes.io/ingress.class: nginx
+spec:
+  tls:
+    - hosts:
+        - nginx.example.com
+      secretName: letsencrypt-staging  # the name of the secret
+  rules:
+    - host: nginx.example.com
+      http:
+        paths:
+          - backend:
+              serviceName: nginx  # name of the service created above
+              servicePort: 80

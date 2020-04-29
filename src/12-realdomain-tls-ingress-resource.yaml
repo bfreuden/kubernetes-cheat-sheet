@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: realdomain-tls-ingress-resource
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod # must match the name of the issuer
+    kubernetes.io/ingress.class: nginx
+spec:
+  tls:
+    - hosts:
+        - real.domain.net
+      secretName: letsencrypt-prod  # the name of the secret
+  rules:
+    - host: real.domain.net
+      http:
+        paths:
+          - backend:
+              serviceName: realdomain-nginx  # name of the service created above
+              servicePort: 80
