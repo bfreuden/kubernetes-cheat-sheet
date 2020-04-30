@@ -102,11 +102,15 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [kube-ops-view](#kube-ops-view)
     + [kubebox](#kubebox)
   * [Setup Let's Encrypt cert-manager in Kubernetes Bare Metal](#setup-let-s-encrypt-cert-manager-in-kubernetes-bare-metal)
-    + [Install NGINX Inc ingress controller](#install-nginx-inc-ingress-controller)
-    + [Install HAProxy](#install-haproxy)
     + [Install cert-manager](#install-cert-manager)
     + [cert-manager demo](#cert-manager-demo)
   * [Deploy and use Nginx ingress controller](#deploy-and-use-nginx-ingress-controller)
+    + [Install Nginx ingress controller](#install-nginx-ingress-controller)
+    + [Demo](#demo-1)
+    + [Automatically generated self-signed certificate](#automatically-generated-self-signed-certificate)
+    + [Automatically Let's Encrypt generated certificate (not working)](#automatically-let-s-encrypt-generated-certificate--not-working-)
+    + [Manually install an existing Let's encrypt certificate](#manually-install-an-existing-let-s-encrypt-certificate)
+  * [Ingresses](#ingresses)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -2642,7 +2646,7 @@ spec:
 
 config maps let you define variables that you can use in your pods.
 
-It looks pretty much like secrets (see above).
+It looks pretty much like secrets: [Secrets](#secrets)
 
 List config maps:
 ```bash
@@ -3370,7 +3374,8 @@ Rancher has an **Alerts** entry in the **Tools** menu with predefined system ale
 
 There are also alerts per namespace.
 
-Rules are based on Prometheus so you have the enable metrics (see above). 
+Rules are based on Prometheus so you have the enable metrics: see [Monitoring Kubernetes Cluster with Rancher](#monitoring-kubernetes-cluster-with-rancher)
+
 You can create custom rules based on prometheus metrics.
 
 You can create notifiers with the **Notifiers** entry in the **Tools** menu. There are several options:
@@ -3462,7 +3467,9 @@ first paragraph of this page about bare metal considerations:
 https://kubernetes.github.io/ingress-nginx/deploy/baremetal/
 
 
-### Install NGINX Inc Ingress controller
+### Install NGINX Inc Ingress controller 
+
+Note: I've not managed to get it working with cert-mananger: see 
 
 There are two ways of installing it: 
 * Using Kubernetes manifests: https://docs.nginx.com/nginx-ingress-controller/installation/installation-with-manifests/ 
@@ -4137,6 +4144,11 @@ kubectl apply -f https://raw.github.com/astefanutti/kubebox/master/cadvisor.yaml
 
 ## Setup Let's Encrypt cert-manager in Kubernetes Bare Metal
 
+I've not been able to get this setup working, so this paragraph is only here for history.
+
+See [Deploy and use Nginx ingress controller](#deploy-and-use-nginx-ingress-controller) for a half-working demo 
+(working with self-signed certificates, but not with automatically generated Let's Encrypt certificates).
+
 https://youtu.be/Hwqm1D2EfFU
 
 That video show how to setup a cert-manager inside the Kubernetes cluster
@@ -4152,13 +4164,9 @@ The setup described below has the following properties:
 Staging certificates (as opposed to prod certificates) won't acutally be signed by Let's Encrypt.
 So this video is not so interesting... but let's try it anyway, just to see if the process is working.
 
-### Install NGINX Inc ingress controller 
+First [Install NGINX Inc Ingress controller](#install-nginx-inc-ingress-controller)
 
-(see above)
-
-### Install HAProxy
-
-(see above)
+Then [Install and configure HAProxy](#install-and-configure-haproxy)
 
 Just add the following lines to haproxy.conf (in addition to http:80 frontend and backend):
 ```text
@@ -4322,6 +4330,8 @@ https://kubernetes.github.io/ingress-nginx/deploy/#bare-metal
 
 We're going to do this with Helm 3.
 
+### Install Nginx ingress controller
+
 ```bash
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 kubectl create ns ingress-nginx
@@ -4384,6 +4394,9 @@ kubectl --namespace ingress-nginx get services -o wide -w ingress-nginx-controll
 NAME                       TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)                      AGE   SELECTOR
 ingress-nginx-controller   LoadBalancer   10.233.31.191   192.168.1.240   80:30080/TCP,443:31403/TCP   82s   app.kubernetes.io/component=controller,app.kubernetes.io/instance=ingress-nginx,app.kubernetes.io/name=ingress-nginx
 ```
+
+### Demo
+
 Let's create our blue and green deployments and services once again:
 ```bash
 kubectl create -f nginx-deploy-blue.yaml
@@ -4440,6 +4453,7 @@ curl green.nginx.example.com
 <h1>I am <font color=blue>BLUE</font></h1>
 <h1>I am <font color=green>GREEN</font></h1>
 ```
+### Automatically generated self-signed certificate
 
 Now let's try https and self-signed certificate creation.
 
@@ -4465,7 +4479,7 @@ spec:
               serviceName: nginx  # name of the service created above
               servicePort: 80
 ```
-And it works:
+And it works (-k because certificate is self-signed):
 ```bash
 curl -k https://nginx.example.com | grep title
 ```
@@ -4473,9 +4487,148 @@ curl -k https://nginx.example.com | grep title
 <title>Welcome to nginx!</title>
 ```
 
-Now let's try with a real certificate (not working yet):
+### Automatically Let's Encrypt generated certificate (not working)
+
+I've tried to get cert-manager obtain a real certificate from Let's Encrypt, but I failed:
+```yaml
+apiVersion: cert-manager.io/v1alpha2
+kind: ClusterIssuer # AFAIK ClusterIssuer can create certificates for all namespaces, and Issuer only for the current namespace
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory # prod API
+    email: my.email@provider.com
+    privateKeySecretRef:
+      name: letsencrypt-prod  # must match the secret name of the Ingress
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+```
+```yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: nginx-ingress-resource-prod
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod # must match the name of the issuer
+    kubernetes.io/ingress.class: nginx
+spec:
+  tls:
+    - hosts:
+        - my.real.domain
+      secretName: letsencrypt-prod  # the name of the secret
+  rules:
+    - host: my.real.domain
+      http:
+        paths:
+          - backend:
+              serviceName: realdomain-nginx  # name of the service created above
+              servicePort: 80
+```
+But when describing the secret:
 ```bash
-kubectl create deployment realdomain-nginx --image ngnix
-kubectl expose deployment realdomain-nginx --port 80
-kubectl create -f 12-realdomain-ingress-resource.yaml
+kubectl describe certificate letsencrypt-prod
+```
+We can see the request is stuck in the InProgress state:
+```text
+Status:
+  Conditions:
+    Last Transition Time:  2020-04-30T09:25:08Z
+    Message:               Waiting for CertificateRequest "letsencrypt-prod-1494693867" to complete
+    Reason:                InProgress
+    Status:                False
+    Type:                  Ready
+```
+Maybe it has something to do with the ``http01`` challenge selected here. 
+Maybe it would work with the ``dns01`` challenge involving setting a TXT record in the DNS. 
+But I don't know how to go on this way because there is a notion "supported DNS providers" in cert-manager:
+
+https://cert-manager.io/docs/configuration/acme/dns01/#supported-dns01-providers
+
+As I'm playing with a Kubernetes cluster at home, with a NoIP dynamic domain name.
+There is a ``RFC-2136`` item supposed to work with RFC2136 compliant DNS server but I don't know
+how to proceed (and I'm tired by that for the moment).
+
+### Manually install an existing Let's encrypt certificate
+
+So I've chosen another approach: using certbot to get a Let's Encrypt certificate and install it manually
+in my cluster.
+
+So here is the procedure:
+```bash
+# on an ubuntu machine
+sudo apt install apache2
+sudo apt install python-certbot-apache
+sudo apt install certbot
+sudo certbot --apache
+```
+At the end of the procedure certbot is showing:
+```text
+IMPORTANT NOTES:
+ - Congratulations! Your certificate and chain have been saved at:
+   /etc/letsencrypt/live/my.real.domain/fullchain.pem
+   Your key file has been saved at:
+   /etc/letsencrypt/live/my.real.domain/privkey.pem
+```
+Grab those two files and create a secret in the cluster:
+```bash
+kubectl create secret tls realdomain-cert --cert fullchain.pem --key privkey.pem
+```
+Then setup your ingress like this:
+```yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: nginx-ingress-resource-prod
+  annotations:
+    # no longer required because not managed by cert-manager (too bad...)
+    # cert-manager.io/cluster-issuer: letsencrypt-prod 
+    kubernetes.io/ingress.class: nginx
+spec:
+  tls:
+    - hosts:
+        - my.real.domain
+      secretName: realdomain-cert  # the name of the manually imported secret
+  rules:
+    - host: my.real.domain
+      http:
+        paths:
+          - backend:
+              serviceName: realdomain-nginx  # name of the service created above
+              servicePort: 80
+```
+And here it comes:
+```bash
+curl https://my.real.domain | grep title
+```
+```text
+<title>Welcome to nginx!</title>
+```
+## Ingresses
+
+Official documentation: https://kubernetes.io/fr/docs/concepts/services-networking/ingress/
+
+Note that ingress configuration seems quite flexible:
+```yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: simple-fanout-example
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: foo.bar.com            # for the same host
+    http:
+      paths:
+      - path: /foo               # you can redirect the /foo path... 
+        backend:
+          serviceName: service1  # ... to service1
+          servicePort: 4200
+      - path: /bar               # and redirect the /bar path... 
+        backend:
+          serviceName: service2  # ... to service 2
+          servicePort: 8080
 ```

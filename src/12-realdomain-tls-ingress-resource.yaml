@@ -3,15 +3,19 @@ kind: Ingress
 metadata:
   name: realdomain-tls-ingress-resource
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod # must match the name of the issuer
+    # no longer required because not managed by cert-manager (too bad...)
+    #cert-manager.io/cluster-issuer: letsencrypt-prod # must match the name of the issuer
     kubernetes.io/ingress.class: nginx
+    #kubernetes.io/tls-acme: "true"
+    #nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   tls:
     - hosts:
-        - real.domain.net
-      secretName: letsencrypt-prod  # the name of the secret
+        - my.real.domain
+      #secretName: letsencrypt-prod  # the name of the secret
+      secretName: realdomain-cert  # the name of the manually imported secret
   rules:
-    - host: real.domain.net
+    - host: my.real.domain
       http:
         paths:
           - backend:
