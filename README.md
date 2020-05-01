@@ -4699,8 +4699,13 @@ You can't edit pdbs. You must delete and recreate them.
 
 ## MongoDB replica set installation
 
-After a little search on Helm Hub (https://hub.helm.sh) we realize there is not official Helm
-chart for MongoDB. The ``bitnami/mongo`` chart looks promising with a 4.2.6 version of MongoDB.
+In this video you'll see a demo of a "manual" MongoDB replica set setup 
+("manual" because you have to run mongodb commands to configure the replica set):
+
+https://www.youtube.com/watch?v=W-lJX3_uE5I
+
+After a little search on Helm Hub (https://hub.helm.sh) we realize there is no official MongoDB Helm chart. 
+The ``bitnami/mongo`` chart looks promising with a 4.2.6 version of MongoDB.
 
 Documentation of the chart: https://hub.helm.sh/charts/bitnami/mongodb
 
@@ -4851,6 +4856,10 @@ kubectl delete -f mongodb-nfs-pvs.yaml
 
 At this point the notion of Kubernetes **Operator** is starting to make sense (maybe). 
 An operator would probably be able to assign pods to distinct nodes.
+
+There is an official MongoDB Kubernetes Operator, but it seems to be part of the Enterprise version:
+
+https://docs.mongodb.com/kubernetes-operator/master/tutorial/install-k8s-operator/
 
 There are Kubernetes features allowing to mitigate this kind of behavior:
 * node affinity/anti affinity
