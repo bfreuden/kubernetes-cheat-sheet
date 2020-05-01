@@ -22,14 +22,12 @@ spec:
               requests:
                 storage: 5Gi
             storageClassName: elasticvol
-#      podTemplate:
-#        spec:
-#          affinity:
-#            podAntiAffinity:
-#              requiredDuringSchedulingIgnoredDuringExecution:
-#                - weight: 100
-#                  podAffinityTerm:
-#                    labelSelector:
-#                      matchLabels:
-#                        elasticsearch.k8s.elastic.co/cluster-name: quickstart
-#                    topologyKey: kubernetes.io/hostname
+      podTemplate:
+        spec:
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    elasticsearch.k8s.elastic.co/cluster-name: quickstart
+                topologyKey: kubernetes.io/hostname
