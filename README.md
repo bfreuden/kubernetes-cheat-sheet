@@ -52,12 +52,11 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [NFS Volumes](#nfs-volumes)
   * [Getting started with Helm](#getting-started-with-helm)
     + [Installing Helm](#installing-helm)
-    + [Installing Helm 2.x](#installing-helm-2x)
+    + [Installing Helm 2.x (deprecated)](#installing-helm-2x--deprecated-)
     + [Migrating from Helm 2.x](#migrating-from-helm-2x)
   * [Installing Jenkins in Kubernetes using Helm](#installing-jenkins-in-kubernetes-using-helm)
   * [Configuring Jenkins to connect to Kubernetes](#configuring-jenkins-to-connect-to-kubernetes)
   * [Jenkins CI CD Pipeline in Kubernetes](#jenkins-ci-cd-pipeline-in-kubernetes)
-  * [Dynamically provision NFS persistent volumes](#dynamically-provision-nfs-persistent-volumes)
   * [Secrets](#secrets)
   * [Statefulsets](#statefulsets)
     + [Create NFS shares](#create-nfs-shares)
@@ -111,6 +110,16 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [Automatically Let's Encrypt generated certificate (not working)](#automatically-let-s-encrypt-generated-certificate--not-working-)
     + [Manually install an existing Let's encrypt certificate](#manually-install-an-existing-let-s-encrypt-certificate)
   * [Ingresses](#ingresses)
+  * [Pod Disruption Budget](#pod-disruption-budget)
+  * [MongoDB replica set installation](#mongodb-replica-set-installation)
+    + [Warning](#warning)
+    + [Create Persistent Volumes](#create-persistent-volumes)
+    + [Install the chart](#install-the-chart)
+    + [Ingress](#ingress)
+    + [Java driver](#java-driver)
+    + [Uninstall](#uninstall-1)
+    + [Conclusion](#conclusion)
+    + [An alternative setup (going into details)](#an-alternative-setup--going-into-details-)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -137,7 +146,7 @@ kubectl version --client
 Do it. It's great. I mean it.
 
 Official documentation:
-
+w
 https://kubernetes.io/docs/tasks/tools/install-kubectl/#enabling-shell-autocompletion
 
 Install bash-completion:
@@ -2239,7 +2248,7 @@ This is no longer true with Helm 3.x.
 Just download the tgz from https://github.com/helm/helm/releases and to extract the executable somewhere.
 
 
-### Installing Helm 2.x
+### Installing Helm 2.x (deprecated)
 
 As tiller will do the deployment, we need to give it the permission to do it on our behalf. 
 So we're going to create a service account with the ``cluster-admin`` role binding. 
@@ -2270,19 +2279,6 @@ https://youtu.be/V4kYbHlQYHg
 https://www.youtube.com/watch?v=4E80gEen-o0
 
 (not watched yet)
-
-## Dynamically provision NFS persistent volumes
-
-https://youtu.be/AavnQzWDTEk?t=63
-
-In the previous sections we saw that that when a cluster user creates a PVC, the cluster administrator has
-to manually create PVs. This is time consuming.
-
-When using Kubernetes in the cloud, there is the notion of dynamic provisioning:
-* you make a volume claim
-* a volume is created automatically
-* you delete your app and your claim
-* the volume is automatically deleted
 
 ## Secrets
 
@@ -4631,4 +4627,358 @@ spec:
         backend:
           serviceName: service2  # ... to service 2
           servicePort: 8080
+```
+
+## Pod Disruption Budget
+
+https://www.youtube.com/watch?v=09Wkw9uhPak&list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0&index=66
+
+(not tested, only transcript)
+
+A cluster administrator might need to drain all the pods from a node
+in order to perform some maintenance operations on that node.
+
+Pod Disruption Budget (pdb) is a way for cluster users to express how many pods of a replicaset
+can be stopped or, put differenly, how many of them must remain active of a maintenance
+operation occurs. 
+
+Let's create a deployment with 4 replicas:
+```bash
+kubectl create deploy nginx --image=nginx --replicas=4
+```
+
+Let's imagine our cluster has 2 worker nodes (kworker1 and kworker2) and that those pods 
+are evenly distributed on those 2 nodes.
+
+Now let's create a pdb that will target our pods (thanks to the selector) and that will 
+require a minimum of 2 pods:
+```bash
+# with percentage
+kubectl create pdb pdbdemo --min-available 50% --selector "run=ginx"
+# with absolute value
+kubectl create pdb pdbdemo2 --min-available 2 --selector "run=ginx"
+```
+You can also create them using the ``11-pdb.yaml`` manifest:
+```yaml
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: pdbdemo
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      run: nginx
+```
+```bash
+kubectl create -f 11-pdb.yaml
+```
+Now let's drain all pods from kworker1:
+```bash
+kubectl drain kworker1 --ignore-daemonsets
+```
+As a result 2 pods have been removed from kworker1 and 2 pods have been created on kworker2 (having a total of 4).
+
+Now if you try to drain all pods from kworker2:
+```bash
+kubectl drain kworker1 --ignore-daemonsets
+```
+The operation will not complete (kubectl command will not finish) and 
+you will get a bunch of error messages  since it violates the pdb.
+Two pods will be removed though and two pods will remain.
+On top of that the replicaset will try to recreate pods but they will stay in 
+the Pending state because the node is in the ShedulingDisabled state (kubectl get nodes).
+
+To get back to a normal state:
+```bash
+kubectl uncordon kworker1
+kubectl uncordon kworker2
+```
+You can't edit pdbs. You must delete and recreate them.
+
+
+## MongoDB replica set installation
+
+After a little search on Helm Hub (https://hub.helm.sh) we realize there is not official Helm
+chart for MongoDB. The ``bitnami/mongo`` chart looks promising with a 4.2.6 version of MongoDB.
+
+Documentation of the chart: https://hub.helm.sh/charts/bitnami/mongodb
+
+The documentation is describing all parameters of the chart.
+
+### Warning 
+
+When restarting the cluster it looks like the MongoDB replica set may become invalid:
+```bash
+kubectl exec -it mymongo-mongodb-primary-0 -- /bin/bash
+mongo -uroot -psecretpassword
+# mongo shell:
+rs.conf()
+rs.status()
+```
+
+### Create Persistent Volumes
+
+For a first try, we'll setup MongoDB over NFS.
+MongoDB documentation says it's OK with specific NFS mount options (bg, nolock, and noatime): 
+https://docs.mongodb.com/manual/administration/production-notes/
+
+To setup an NFS server with NFS shares see: [Create NFS shares](#create-nfs-shares) 
+
+ 
+We'll create 3 NFS PVs with the ``mongodb-nfs-pvs.yaml`` manifest (8Gi is the default value of the MongoDB chart):
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nfs-pv0
+  labels:
+    type: local
+spec:
+  storageClassName: mongovol
+  capacity:
+    storage: 8Gi
+  accessModes:
+    - ReadWriteOnce
+  mountOptions:
+    - bg
+    - nolock
+    - noatime
+  nfs:
+    server: node1
+    path: "/srv/nfs/kubedata/pv0"
+---
+etc...
+```
+```bash
+kubectl create -f mongodb-nfs-pvs.yaml
+```
+
+### Install the chart
+
+Let's install a MongoDB replicaset (that is not a Kubernetes replicaset) as a statefulset with 
+password enabled, an ingress, metrics enabled (with mongodb exporter), 1 arbiter, 1 master and 2 replicas:
+```bash
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm  install mymongo --set usePassword=true,mongodbRootPassword=secretpassword,mongodbUsername=my-user,mongodbPassword=my-password,mongodbDatabase=my-database,replicaSet.enabled=true,useStatefulSet=true,ingress.enabled=true,metrics.enabled=true,replicaSet.replicas.secondary=2,persistence.storageClass=mongovol bitnami/mongodb
+```
+Chart output will contain interesting information:
+```text
+MongoDB can be accessed via port 27017 on the following DNS name from within your cluster:
+    mymongo-mongodb.default
+
+To get the root password run:
+
+    export MONGODB_ROOT_PASSWORD=$(kubectl get secret --namespace default mymongo-mongodb -o jsonpath="{.data.mongodb-root-password}" | base64 --decode)
+
+To get the password for "my-user" run:
+
+    export MONGODB_PASSWORD=$(kubectl get secret --namespace default mymongo-mongodb -o jsonpath="{.data.mongodb-password}" | base64 --decode)
+
+To connect to your database run the following command:
+
+    kubectl run --namespace default mymongo-mongodb-client --rm --tty -i --restart='Never' --image docker.io/bitnami/mongodb:4.2.6-debian-10-r13 --command -- mongo admin --host mymongo-mongodb --authenticationDatabase admin -u root -p $MONGODB_ROOT_PASSWORD
+
+To connect to your database from outside the cluster execute the following commands:
+
+    kubectl port-forward --namespace default svc/mymongo-mongodb 27017:27017 &
+    mongo --host 127.0.0.1 --authenticationDatabase admin -p $MONGODB_ROOT_PASSWORD
+```
+
+Once installation is over, the scheduling of pods on cluster nodes (we have node1, node2 and node3) is surprising.
+We have the master, the arbiter and one replica on node1, one replica on node2, and nothing on node3:
+```bash
+kubectl get pods -o wide | grep -E "READY|mongo"
+```
+```text
+NAME                                  READY   STATUS    RESTARTS   AGE     IP              NODE    NOMINATED NODE   READINESS GATES
+mymongo-mongodb-arbiter-0             1/1     Running   3          14h     10.233.90.187   node1   <none>           <none>
+mymongo-mongodb-primary-0             2/2     Running   2          14h     10.233.90.180   node1   <none>           <none>
+mymongo-mongodb-secondary-0           2/2     Running   2          14h     10.233.96.67    node2   <none>           <none>
+mymongo-mongodb-secondary-1           2/2     Running   2          14h     10.233.90.193   node1   <none>           <none>
+```
+If we check NFS mount options on node2 it is not sure the ``bg`` option has been taken into account:
+```bash
+ansible node2 -m shell -a "mount -l | grep nfs"
+```
+```text
+node1:/srv/nfs/kubedata/pv0 on /var/lib/kubelet/pods/ad0afbd7-c6c8-46dc-9d48-b35d35a815d8/volumes/kubernetes.io~nfs/pv-nfs-pv0 type nfs4 (rw,noatime,vers=4.2,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.1.14,local_lock=none,addr=192.168.1.12)
+```
+### Ingress
+
+(todo)
+
+There is a *Configure Ingress* paragraph in the chart documentation: https://hub.helm.sh/charts/bitnami/mongodb
+
+It is suggesting that it requires a specific configuration of the nginx ingress controller.
+
+### Java driver
+
+If the service is exposed like this:
+```bash
+kubectl port-forward --namespace default svc/mymongo-mongodb 27017:27017
+```
+Then the Java driver can't connect to the replicaset:
+```ini
+uri=mongodb://root:secretpassword@localhost:27017/?maxPoolSize=50&replicaSet=rs0
+```
+Because it can't resolve the hostnames that only make sense from within the cluster:
+```text
+java.net.UnknownHostException: mymongo-mongodb-secondary-1.mymongo-mongodb-headless.default
+```
+So you have to remove the ``replicaSet`` option:
+```ini
+uri=mongodb://root:secretpassword@localhost:27017/?maxPoolSize=50
+```
+This will be working because the mymongo-mongodb service will only target the primary node.
+But I don't know the consequences of not using ``replicaSet`` in the URI.
+
+### Uninstall
+
+Uninstall with Helm:
+```bash
+helm uninstall mymongo
+```
+Delete PVCs and PVs:
+```bash
+kubectl delete pvc datadir-mymongo-mongodb-primary-0
+kubectl delete pvc datadir-mymongo-mongodb-secondary-0
+kubectl delete pvc datadir-mymongo-mongodb-secondary-1
+kubectl delete -f mongodb-nfs-pvs.yaml
+```
+
+### Conclusion
+
+At this point the notion of Kubernetes **Operator** is starting to make sense (maybe). 
+An operator would probably be able to assign pods to distinct nodes.
+
+There are Kubernetes features allowing to mitigate this kind of behavior:
+* node affinity/anti affinity
+* pod affinity/anti affinity (although that one is not recommended for large clusters)
+* pod limits
+
+### An alternative setup (going into details)
+
+In my demo cluster node1 has an HDD, node2 and node3 have an SSD.
+
+I want to install MongoDB in a ``mongodb`` namespace, only on machines having an SSD, 
+using HostPath volumes (I don't want to use NFS).
+
+First we're going to label nodes and create a mongodb namespace:
+```bash
+kubectl label node node1 disk=hdd
+kubectl label node node2 disk=ssd
+kubectl label node node3 disk=ssd
+kubectl create ns mongodb
+```
+Then, instead of providing chart parameters on the command-line, we'll use a ``mymongo-values.yaml`` values file:
+```yaml
+# values previously on set on command-line
+usePassword: true
+mongodbRootPassword: secret # this time the password is different
+# and we don't want to create this additional my-user user having access the my-database database
+#mongodbUsername: my-user
+#mongodbPassword: my-password
+#mongodbDatabase: my-database
+useStatefulSet: true
+ingress:
+  enabled: true
+metrics:
+  enabled: true
+replicaSet:
+  enabled: true
+  replicas:
+    secondary: 1 # this time we only want one replica
+persistence:
+  storageClass: mongovol
+affinity:
+  # we want to assign primary and secondary to nodes...
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution: # ... that MUST (**required**DuringSchedulingIgnoredDuringExecution)
+      nodeSelectorTerms:
+        - matchExpressions:                         # ... satisfy these conditions:
+            - key: disk                             # a label called "disk"
+              operator: In
+              values: [ ssd ]                       # with an "sdd" value
+  podAntiAffinity: # with a limitation on "surrounding pods":
+    requiredDuringSchedulingIgnoredDuringExecution: # "surrounding pods" MUST NOT:
+      - labelSelector:                              # have a label
+          matchExpressions:
+            - key: component                        # called "component"
+              operator: In
+              values: [ primary, secondary ]        # with an "primary" or "secondary" value
+        topologyKey: "kubernetes.io/hostname"       # with "surrounding pods" defined as pods running on the same hostname
+affinityArbiter:
+  # we want to assign arbiter to the machine with an HDD
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: disk
+              operator: In
+              values: [ hdd ]
+```
+
+Using the ``template`` command, we tell Helm to generate the Kubernetes manifest without applying it
+so we can have a look at it:
+``` bash
+helm template --namespace mongodb -f mymongo-values.yaml  bitnami/mongodb > mongodb2.yaml
+```
+Next we want to create ``HostPath`` volumes.
+First create volume directories on ssd nodes (mode=0777 might not be required):
+```bash
+ansible -b node2,node3 -m file -a "path=/var/kubernetes/mongovol0 mode=0777 state=directory"
+ansible -b node2,node3 -m file -a "path=/var/kubernetes/mongovol1 mode=0777 state=directory"
+```
+
+Then we create NodePath volumes using the ``mongodb-hostpath-pvs.yaml`` manifest:
+```yaml
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-hostpath-mongovol0
+  labels:
+    type: local
+spec:
+  storageClassName: mongovol
+  capacity:
+    storage: 8Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/var/kubernetes/mongovol0"
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-hostpath-mongovol1
+  labels:
+    type: local
+spec:
+  storageClassName: mongovol
+  capacity:
+    storage: 8Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/var/kubernetes/mongovol1"
+```
+```bash
+kubectl create -f mongodb-hostpath-pvs.yaml
+```
+
+Finally we run the chart:
+```bash
+helm install  --namespace mongodb -f mymongo-values.yaml mymongo bitnami/mongodb
+```
+And now we have the expected distribution of pods:
+```bash
+kubectl get pods -o wide | grep -E "READY|mongo"
+```
+```text
+NAME                              READY   STATUS    RESTARTS   AGE     IP              NODE    NOMINATED NODE   READINESS GATES
+pod/mymongo-mongodb-arbiter-0     1/1     Running   0          5m23s   10.233.90.204   node1   <none>           <none>
+pod/mymongo-mongodb-primary-0     2/2     Running   0          5m24s   10.233.92.165   node3   <none>           <none>
+pod/mymongo-mongodb-secondary-0   2/2     Running   0          5m24s   10.233.96.71    node2   <none>           <none>
 ```

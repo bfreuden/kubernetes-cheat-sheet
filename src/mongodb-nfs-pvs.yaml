@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nfs-pv0
+  labels:
+    type: local
+spec:
+  storageClassName: mongovol
+  capacity:
+    storage: 8Gi
+  accessModes:
+    - ReadWriteOnce
+  mountOptions:
+    - bg
+    - nolock
+    - noatime
+  nfs:
+    server: node1
+    path: "/srv/nfs/kubedata/pv0"
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nfs-pv1
+  labels:
+    type: local
+spec:
+  storageClassName: mongovol
+  capacity:
+    storage: 8Gi
+  accessModes:
+    - ReadWriteOnce
+  mountOptions:
+    - bg
+    - nolock
+    - noatime
+  nfs:
+    server: node1
+    path: "/srv/nfs/kubedata/pv1"
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nfs-pv2
+  labels:
+    type: local
+spec:
+  storageClassName: mongovol
+  capacity:
+    storage: 8Gi
+  accessModes:
+    - ReadWriteOnce
+  mountOptions:
+    - bg
+    - nolock
+    - noatime
+  nfs:
+    server: node1
+    path: "/srv/nfs/kubedata/pv2"

@@ -1,0 +1,46 @@
+# values previously on set on command-line
+usePassword: true
+mongodbRootPassword: secret # this time the password is different
+# and we don't want to create this additional my-user user having access the my-database database
+#mongodbUsername: my-user
+#mongodbPassword: my-password
+#mongodbDatabase: my-database
+useStatefulSet: true
+ingress:
+  enabled: true
+metrics:
+  enabled: true
+replicaSet:
+  enabled: true
+  replicas:
+    secondary: 1 # we changed that to 1 this time
+persistence:
+  storageClass: mongovol
+affinity:
+  # we want to assign primary and secondary pods to nodes...
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution: # ... that MUST (**required**DuringSchedulingIgnoredDuringExecution)
+      nodeSelectorTerms:
+        - matchExpressions:                         # ... satisfy these conditions:
+            - key: disk                             # a label called "disk"
+              operator: In
+              values: [ ssd ]                       # with an "sdd" value
+  # WARNING: for the primary this does not make sense for the moment and will be tweaked afterwards
+  # we want to assign primary and secondary pods to nodes...
+  podAntiAffinity:                                  # ... with a limitation on "surrounding pods"
+    requiredDuringSchedulingIgnoredDuringExecution: # ... "surrounding pods" MUST NOT:
+      - labelSelector:                              # have a label
+          matchExpressions:
+            - key: component                        # called "component"
+              operator: In
+              values: [ primary, secondary ]        # with a "primary" or "secondary" value
+        topologyKey: "kubernetes.io/hostname"       # with "surrounding pods" defined as pods running on the same node
+affinityArbiter:
+  # we want to assign arbiter to the machine with an HDD
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: disk
+              operator: In
+              values: [ hdd ]
