@@ -1,0 +1,45 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-hostpath-elasticvol0
+  labels:
+    type: local
+spec:
+  storageClassName: elasticvol
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/var/kubernetes/elasticvol0"
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-hostpath-elasticvol1
+  labels:
+    type: local
+spec:
+  storageClassName: elasticvol
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/var/kubernetes/elasticvol1"
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-hostpath-elasticvol2
+  labels:
+    type: local
+spec:
+  storageClassName: elasticvol
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/var/kubernetes/elasticvol2"

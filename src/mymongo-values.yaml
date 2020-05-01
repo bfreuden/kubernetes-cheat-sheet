@@ -29,12 +29,14 @@ affinity:
   # we want to assign primary and secondary pods to nodes...
   podAntiAffinity:                                  # ... with a limitation on "surrounding pods"
     requiredDuringSchedulingIgnoredDuringExecution: # ... "surrounding pods" MUST NOT:
-      - labelSelector:                              # have a label
-          matchExpressions:
-            - key: component                        # called "component"
-              operator: In
-              values: [ primary, secondary ]        # with a "primary" or "secondary" value
-        topologyKey: "kubernetes.io/hostname"       # with "surrounding pods" defined as pods running on the same node
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:                              # have a label
+            matchExpressions:
+              - key: component                        # called "component"
+                operator: In
+                values: [ primary, secondary ]        # with a "primary" or "secondary" value
+          topologyKey: "kubernetes.io/hostname"       # with "surrounding pods" defined as pods running on the same node
 affinityArbiter:
   # we want to assign arbiter to the machine with an HDD
   nodeAffinity:

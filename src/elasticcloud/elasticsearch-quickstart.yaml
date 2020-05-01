@@ -1,0 +1,37 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: quickstart
+spec:
+  version: 7.6.2
+  nodeSets:
+    - name: default
+      count: 1
+      config:
+        node.master: true
+        node.data: true
+        node.ingest: false  # disable ingest
+        node.store.allow_mmap: true # allow use of mmap
+      volumeClaimTemplates:  # use our elasticvol storage class
+        - metadata:
+            name: elasticsearch-data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 5Gi
+            storageClassName: elasticvol
+      podTemplate:
+        spec:
+          nodeSelector:  # use a node with an SSD
+            disk: ssd
+#          affinity:
+#            podAntiAffinity:
+#              requiredDuringSchedulingIgnoredDuringExecution:
+#                - weight: 100
+#                  podAffinityTerm:
+#                    labelSelector:
+#                      matchLabels:
+#                        elasticsearch.k8s.elastic.co/cluster-name: quickstart
+#                    topologyKey: kubernetes.io/hostname
