@@ -1,0 +1,27 @@
+bruno@hearne:~$ kubectl run myshell -it --rm --image busybox -- sh
+If you don't see a command prompt, try pressing enter.
+/ # ping mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb
+PING mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb (10.233.92.177): 56 data bytes
+64 bytes from 10.233.92.177: seq=0 ttl=62 time=0.545 ms
+64 bytes from 10.233.92.177: seq=1 ttl=62 time=0.506 ms
+^C
+--- mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb ping statistics ---
+2 packets transmitted, 2 packets received, 0% packet loss
+round-trip min/avg/max = 0.506/0.525/0.545 ms
+/ # ping mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb
+PING mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb (10.233.96.77): 56 data bytes
+64 bytes from 10.233.96.77: seq=0 ttl=62 time=0.597 ms
+64 bytes from 10.233.96.77: seq=1 ttl=62 time=0.702 ms
+^C
+--- mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb ping statistics ---
+2 packets transmitted, 2 packets received, 0% packet loss
+round-trip min/avg/max = 0.597/0.649/0.702 ms
+/ # ping mymongo-mongodb-arbiter-0.mymongo-mongodb-headless.mongodb
+PING mymongo-mongodb-arbiter-0.mymongo-mongodb-headless.mongodb (10.233.90.213): 56 data bytes
+64 bytes from 10.233.90.213: seq=0 ttl=63 time=0.099 ms
+64 bytes from 10.233.90.213: seq=1 ttl=63 time=0.089 ms
+^C
+--- mymongo-mongodb-arbiter-0.mymongo-mongodb-headless.mongodb ping statistics ---
+2 packets transmitted, 2 packets received, 0% packet loss
+round-trip min/avg/max = 0.089/0.094/0.099 ms
+

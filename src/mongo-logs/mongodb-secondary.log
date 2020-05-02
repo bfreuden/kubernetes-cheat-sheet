@@ -1,0 +1,343 @@
+kubectl -n mongodb logs mymongo-mongodb-secondary-0 mongodb-secondary | grep "2020-05-02" | grep -v -E "(connection accepted)|(end connection)|(received client metadata)|(Successfully authenticated)" > mongodb-secondary.log
+
+2020-05-02T09:06:22.190+0000 I  CONTROL  [main] ***** SERVER RESTARTED *****
+2020-05-02T09:06:22.201+0000 I  CONTROL  [main] Automatically disabling TLS 1.0, to force-enable TLS 1.0 specify --sslDisabledProtocols 'none'
+2020-05-02T09:06:22.213+0000 W  ASIO     [main] No TransportLayer configured during NetworkInterface startup
+2020-05-02T09:06:22.280+0000 I  CONTROL  [initandlisten] MongoDB starting : pid=1 port=27017 dbpath=/bitnami/mongodb/data/db 64-bit host=mymongo-mongodb-secondary-0
+2020-05-02T09:06:22.280+0000 I  CONTROL  [initandlisten] db version v4.2.6
+2020-05-02T09:06:22.280+0000 I  CONTROL  [initandlisten] git version: 20364840b8f1af16917e4c23c1b5f5efd8b352f8
+2020-05-02T09:06:22.280+0000 I  CONTROL  [initandlisten] OpenSSL version: OpenSSL 1.1.1d  10 Sep 2019
+2020-05-02T09:06:22.280+0000 I  CONTROL  [initandlisten] allocator: tcmalloc
+2020-05-02T09:06:22.280+0000 I  CONTROL  [initandlisten] modules: none
+2020-05-02T09:06:22.280+0000 I  CONTROL  [initandlisten] build environment:
+2020-05-02T09:06:22.280+0000 I  CONTROL  [initandlisten]     distmod: debian10
+2020-05-02T09:06:22.280+0000 I  CONTROL  [initandlisten]     distarch: x86_64
+2020-05-02T09:06:22.280+0000 I  CONTROL  [initandlisten]     target_arch: x86_64
+2020-05-02T09:06:22.280+0000 I  CONTROL  [initandlisten] options: { config: "/opt/bitnami/mongodb/conf/mongodb.conf", net: { bindIp: "*", ipv6: false, port: 27017, unixDomainSocket: { enabled: true, pathPrefix: "/opt/bitnami/mongodb/tmp" } }, processManagement: { fork: false, pidFilePath: "/opt/bitnami/mongodb/tmp/mongodb.pid" }, replication: { enableMajorityReadConcern: true, replSetName: "rs0" }, security: { authorization: "disabled", keyFile: "/opt/bitnami/mongodb/conf/keyfile" }, setParameter: { enableLocalhostAuthBypass: "true" }, storage: { dbPath: "/bitnami/mongodb/data/db", directoryPerDB: false, journal: { enabled: true } }, systemLog: { destination: "file", logAppend: true, logRotate: "reopen", path: "/opt/bitnami/mongodb/logs/mongodb.log", quiet: false, verbosity: 0 } }
+2020-05-02T09:06:22.283+0000 I  STORAGE  [initandlisten] Detected data files in /bitnami/mongodb/data/db created by the 'wiredTiger' storage engine, so setting the active storage engine to 'wiredTiger'.
+2020-05-02T09:06:22.283+0000 I  STORAGE  [initandlisten] 
+2020-05-02T09:06:22.283+0000 I  STORAGE  [initandlisten] ** WARNING: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine
+2020-05-02T09:06:22.283+0000 I  STORAGE  [initandlisten] **          See http://dochub.mongodb.org/core/prodnotes-filesystem
+2020-05-02T09:06:22.283+0000 I  STORAGE  [initandlisten] wiredtiger_open config: create,cache_size=3421M,cache_overflow=(file_max=0M),session_max=33000,eviction=(threads_min=4,threads_max=4),config_base=false,statistics=(fast),log=(enabled=true,archive=true,path=journal,compressor=snappy),file_manager=(close_idle_time=100000,close_scan_interval=10,close_handle_minimum=250),statistics_log=(wait=0),verbose=[recovery_progress,checkpoint_progress],
+2020-05-02T09:06:23.192+0000 I  STORAGE  [initandlisten] WiredTiger message [1588410383:192384][1:0x7f05635ced40], txn-recover: Recovering log 3 through 4
+2020-05-02T09:06:23.335+0000 I  STORAGE  [initandlisten] WiredTiger message [1588410383:335929][1:0x7f05635ced40], txn-recover: Recovering log 4 through 4
+2020-05-02T09:06:23.437+0000 I  STORAGE  [initandlisten] WiredTiger message [1588410383:437427][1:0x7f05635ced40], txn-recover: Main recovery loop: starting at 3/2292096 to 4/256
+2020-05-02T09:06:23.438+0000 I  STORAGE  [initandlisten] WiredTiger message [1588410383:438178][1:0x7f05635ced40], txn-recover: Recovering log 3 through 4
+2020-05-02T09:06:23.491+0000 I  STORAGE  [initandlisten] WiredTiger message [1588410383:491403][1:0x7f05635ced40], txn-recover: Recovering log 4 through 4
+2020-05-02T09:06:23.537+0000 I  STORAGE  [initandlisten] WiredTiger message [1588410383:537117][1:0x7f05635ced40], txn-recover: Set global recovery timestamp: (1588361667, 1)
+2020-05-02T09:06:23.563+0000 I  RECOVERY [initandlisten] WiredTiger recoveryTimestamp. Ts: Timestamp(1588361667, 1)
+2020-05-02T09:06:23.571+0000 I  STORAGE  [initandlisten] Starting OplogTruncaterThread local.oplog.rs
+2020-05-02T09:06:23.572+0000 I  STORAGE  [initandlisten] The size storer reports that the oplog contains 2816 records totaling to 310119 bytes
+2020-05-02T09:06:23.572+0000 I  STORAGE  [initandlisten] Scanning the oplog to determine where to place markers for truncation
+2020-05-02T09:06:23.574+0000 I  STORAGE  [initandlisten] WiredTiger record store oplog processing took 2ms
+2020-05-02T09:06:23.577+0000 I  STORAGE  [initandlisten] Timestamp monitor starting
+2020-05-02T09:06:23.591+0000 I  SHARDING [initandlisten] Marking collection local.system.replset as collection version: <unsharded>
+2020-05-02T09:06:23.609+0000 I  STORAGE  [initandlisten] Flow Control is enabled on this deployment.
+2020-05-02T09:06:23.610+0000 I  SHARDING [initandlisten] Marking collection admin.system.roles as collection version: <unsharded>
+2020-05-02T09:06:23.610+0000 I  SHARDING [initandlisten] Marking collection admin.system.version as collection version: <unsharded>
+2020-05-02T09:06:23.613+0000 I  SHARDING [initandlisten] Marking collection local.startup_log as collection version: <unsharded>
+2020-05-02T09:06:23.613+0000 I  FTDC     [initandlisten] Initializing full-time diagnostic data capture with directory '/bitnami/mongodb/data/db/diagnostic.data'
+2020-05-02T09:06:23.617+0000 I  SHARDING [initandlisten] Marking collection local.replset.minvalid as collection version: <unsharded>
+2020-05-02T09:06:23.617+0000 I  SHARDING [initandlisten] Marking collection local.replset.election as collection version: <unsharded>
+2020-05-02T09:06:23.618+0000 I  REPL     [initandlisten] Did not find local initialized voted for document at startup.
+2020-05-02T09:06:23.620+0000 I  REPL     [initandlisten] Rollback ID is 1
+2020-05-02T09:06:23.623+0000 I  REPL     [initandlisten] Recovering from stable timestamp: Timestamp(1588361667, 1) (top of oplog: { ts: Timestamp(1588361667, 1), t: 2 }, appliedThrough: { ts: Timestamp(0, 0), t: -1 }, TruncateAfter: Timestamp(0, 0))
+2020-05-02T09:06:23.623+0000 I  REPL     [initandlisten] Starting recovery oplog application at the stable timestamp: Timestamp(1588361667, 1)
+2020-05-02T09:06:23.623+0000 I  REPL     [initandlisten] No oplog entries to apply for recovery. Start point is at the top of the oplog.
+2020-05-02T09:06:23.624+0000 I  SHARDING [initandlisten] Marking collection config.transactions as collection version: <unsharded>
+2020-05-02T09:06:23.626+0000 I  SHARDING [initandlisten] Marking collection local.oplog.rs as collection version: <unsharded>
+2020-05-02T09:06:23.630+0000 I  CONTROL  [LogicalSessionCacheRefresh] Sessions collection is not set up; waiting until next sessions refresh interval: Replication has not yet been configured
+2020-05-02T09:06:23.631+0000 I  SHARDING [LogicalSessionCacheReap] Marking collection config.system.sessions as collection version: <unsharded>
+2020-05-02T09:06:23.632+0000 I  NETWORK  [listener] Listening on /opt/bitnami/mongodb/tmp/mongodb-27017.sock
+2020-05-02T09:06:23.632+0000 I  NETWORK  [listener] Listening on 0.0.0.0
+2020-05-02T09:06:23.632+0000 I  NETWORK  [listener] waiting for connections on port 27017
+2020-05-02T09:06:23.633+0000 I  CONTROL  [LogicalSessionCacheReap] Failed to reap transaction table: NotYetInitialized: Replication has not yet been configured
+2020-05-02T09:06:24.128+0000 I  SHARDING [conn1] Marking collection admin.system.users as collection version: <unsharded>
+2020-05-02T09:06:39.374+0000 W  NETWORK  [replexec-0] getaddrinfo("mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb") failed: Name or service not known
+2020-05-02T09:06:57.771+0000 W  NETWORK  [replexec-0] getaddrinfo("mymongo-mongodb-arbiter-0.mymongo-mongodb-headless.mongodb") failed: Name or service not known
+2020-05-02T09:07:23.836+0000 W  NETWORK  [replexec-0] getaddrinfo("mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb") failed: Name or service not known
+2020-05-02T09:07:44.894+0000 W  REPL     [replexec-0] Locally stored replica set configuration does not have a valid entry for the current node; waiting for reconfig or remote heartbeat; Got "NodeNotFound: No host described in new configuration 3 for replica set rs0 maps to this node" while validating { _id: "rs0", version: 3, protocolVersion: 1, writeConcernMajorityJournalDefault: true, members: [ { _id: 0, host: "mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb:27017", arbiterOnly: false, buildIndexes: true, hidden: false, priority: 5.0, tags: {}, slaveDelay: 0, votes: 1 }, { _id: 1, host: "mymongo-mongodb-arbiter-0.mymongo-mongodb-headless.mongodb:27017", arbiterOnly: true, buildIndexes: true, hidden: false, priority: 0.0, tags: {}, slaveDelay: 0, votes: 1 }, { _id: 2, host: "mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb:27017", arbiterOnly: false, buildIndexes: true, hidden: false, priority: 1.0, tags: {}, slaveDelay: 0, votes: 1 } ], settings: { chainingAllowed: true, heartbeatIntervalMillis: 2000, heartbeatTimeoutSecs: 10, electionTimeoutMillis: 10000, catchUpTimeoutMillis: -1, catchUpTakeoverDelayMillis: 30000, getLastErrorModes: {}, getLastErrorDefaults: { w: 1, wtimeout: 0 }, replicaSetId: ObjectId('5eac0bd3faa48a850347e53e') } }
+2020-05-02T09:07:44.894+0000 I  REPL     [replexec-0] 
+2020-05-02T09:07:44.894+0000 I  REPL     [replexec-0] ** WARNING: This replica set has a Primary-Secondary-Arbiter architecture, but readConcern:majority is enabled 
+2020-05-02T09:07:44.894+0000 I  REPL     [replexec-0] **          for this node. This is not a recommended configuration. Please see 
+2020-05-02T09:07:44.894+0000 I  REPL     [replexec-0] **          https://dochub.mongodb.org/core/psa-disable-rc-majority
+2020-05-02T09:07:44.894+0000 I  REPL     [replexec-0] 
+2020-05-02T09:07:44.895+0000 I  REPL     [replexec-0] New replica set config in use: { _id: "rs0", version: 3, protocolVersion: 1, writeConcernMajorityJournalDefault: true, members: [ { _id: 0, host: "mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb:27017", arbiterOnly: false, buildIndexes: true, hidden: false, priority: 5.0, tags: {}, slaveDelay: 0, votes: 1 }, { _id: 1, host: "mymongo-mongodb-arbiter-0.mymongo-mongodb-headless.mongodb:27017", arbiterOnly: true, buildIndexes: true, hidden: false, priority: 0.0, tags: {}, slaveDelay: 0, votes: 1 }, { _id: 2, host: "mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb:27017", arbiterOnly: false, buildIndexes: true, hidden: false, priority: 1.0, tags: {}, slaveDelay: 0, votes: 1 } ], settings: { chainingAllowed: true, heartbeatIntervalMillis: 2000, heartbeatTimeoutSecs: 10, electionTimeoutMillis: 10000, catchUpTimeoutMillis: -1, catchUpTakeoverDelayMillis: 30000, getLastErrorModes: {}, getLastErrorDefaults: { w: 1, wtimeout: 0 }, replicaSetId: ObjectId('5eac0bd3faa48a850347e53e') } }
+2020-05-02T09:07:44.895+0000 I  REPL     [replexec-0] This node is not a member of the config
+2020-05-02T09:07:44.895+0000 I  REPL     [replexec-0] transition to REMOVED from STARTUP
+2020-05-02T09:07:44.895+0000 I  REPL     [replexec-0] Starting replication storage threads
+2020-05-02T09:07:44.900+0000 I  REPL     [replexec-0] Starting replication fetcher thread
+2020-05-02T09:07:44.900+0000 I  REPL     [replexec-0] Starting replication applier thread
+2020-05-02T09:07:44.900+0000 I  REPL     [replexec-0] Starting replication reporter thread
+2020-05-02T09:07:44.900+0000 I  REPL     [rsSync-0] Starting oplog application
+2020-05-02T09:11:23.630+0000 I  NETWORK  [LogicalSessionCacheRefresh] Starting new replica set monitor for rs0/mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb:27017,mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb:27017
+2020-05-02T09:11:23.637+0000 I  CONNPOOL [ReplicaSetMonitor-TaskExecutor] Connecting to mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb:27017
+2020-05-02T09:11:23.637+0000 I  CONNPOOL [ReplicaSetMonitor-TaskExecutor] Connecting to mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb:27017
+2020-05-02T09:11:23.731+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:24.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:24.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:25.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:25.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:26.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:26.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:27.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:27.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:28.137+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:28.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:29.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:29.642+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:30.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:30.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:31.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:31.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:32.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:32.637+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:33.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:33.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:34.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:34.637+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:35.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:35.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:36.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:36.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:37.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:37.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:38.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:38.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:39.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:39.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:40.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:40.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:41.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:41.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:42.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:42.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:43.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:43.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:11:43.638+0000 I  CONTROL  [LogicalSessionCacheRefresh] Sessions collection is not set up; waiting until next sessions refresh interval: Could not find host matching read preference { mode: "primary" } for set rs0
+2020-05-02T09:11:43.639+0000 I  CONTROL  [LogicalSessionCacheReap] Failed to reap transaction table: FailedToSatisfyReadPreference: Could not find host matching read preference { mode: "primary" } for set rs0
+2020-05-02T09:16:23.642+0000 I  NETWORK  [LogicalSessionCacheRefresh] Starting new replica set monitor for rs0/mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb:27017,mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb:27017
+2020-05-02T09:16:23.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:24.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:24.648+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:25.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:25.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:26.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:26.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:27.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:27.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:28.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:28.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:29.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:29.647+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:30.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:30.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:31.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:31.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:32.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:32.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:33.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:33.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:34.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:34.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:35.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:35.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:36.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:36.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:37.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:37.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:38.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:38.643+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:39.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:39.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:40.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:40.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:41.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:41.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:42.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:42.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:43.144+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:43.644+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:16:43.644+0000 I  CONTROL  [LogicalSessionCacheRefresh] Sessions collection is not set up; waiting until next sessions refresh interval: Could not find host matching read preference { mode: "primary" } for set rs0
+2020-05-02T09:16:43.644+0000 I  CONTROL  [LogicalSessionCacheReap] Failed to reap transaction table: FailedToSatisfyReadPreference: Could not find host matching read preference { mode: "primary" } for set rs0
+2020-05-02T09:21:23.630+0000 I  NETWORK  [LogicalSessionCacheRefresh] Starting new replica set monitor for rs0/mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb:27017,mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb:27017
+2020-05-02T09:21:23.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:23.635+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:24.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:24.663+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:25.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:25.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:26.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:26.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:27.135+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:27.635+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:28.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:28.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:29.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:29.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:30.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:30.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:31.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:31.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:32.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:32.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:33.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:33.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:34.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:34.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:35.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:35.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:36.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:36.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:37.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:37.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:38.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:38.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:39.135+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:39.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:40.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:40.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:41.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:41.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:42.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:42.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:43.137+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:43.637+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:21:43.637+0000 I  CONTROL  [LogicalSessionCacheRefresh] Sessions collection is not set up; waiting until next sessions refresh interval: Could not find host matching read preference { mode: "primary" } for set rs0
+2020-05-02T09:21:43.638+0000 I  CONTROL  [LogicalSessionCacheReap] Failed to reap transaction table: FailedToSatisfyReadPreference: Could not find host matching read preference { mode: "primary" } for set rs0
+2020-05-02T09:26:23.630+0000 I  NETWORK  [LogicalSessionCacheRefresh] Starting new replica set monitor for rs0/mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb:27017,mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb:27017
+2020-05-02T09:26:23.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:23.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:24.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:24.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:25.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:25.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:26.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:26.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:27.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:27.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:28.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:28.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:29.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:29.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:30.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:30.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:31.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:31.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:32.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:32.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:33.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:33.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:34.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:34.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:35.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:35.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:36.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:36.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:37.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:37.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:38.133+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:38.635+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:39.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:39.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:40.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:40.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:41.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:41.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:42.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:42.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:43.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:43.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:26:43.636+0000 I  CONTROL  [LogicalSessionCacheRefresh] Sessions collection is not set up; waiting until next sessions refresh interval: Could not find host matching read preference { mode: "primary" } for set rs0
+2020-05-02T09:26:43.637+0000 I  CONTROL  [LogicalSessionCacheReap] Failed to reap transaction table: FailedToSatisfyReadPreference: Could not find host matching read preference { mode: "primary" } for set rs0
+2020-05-02T09:31:23.630+0000 I  NETWORK  [LogicalSessionCacheRefresh] Starting new replica set monitor for rs0/mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb:27017,mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb:27017
+2020-05-02T09:31:23.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:23.635+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:24.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:24.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:25.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:25.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:26.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:26.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:27.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:27.630+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:28.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:28.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:29.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:29.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:30.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:30.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:31.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:31.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:32.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:32.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:33.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:33.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:34.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:34.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:35.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:35.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:36.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:36.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:37.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:37.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:38.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:38.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:39.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:39.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:40.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:40.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:41.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:41.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:42.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:42.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:43.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:43.631+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:43.632+0000 I  CONTROL  [LogicalSessionCacheRefresh] Sessions collection is not set up; waiting until next sessions refresh interval: Could not find host matching read preference { mode: "primary" } for set rs0
+2020-05-02T09:31:44.131+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:31:44.131+0000 I  CONTROL  [LogicalSessionCacheReap] Failed to reap transaction table: FailedToSatisfyReadPreference: Could not find host matching read preference { mode: "primary" } for set rs0
+2020-05-02T09:36:23.630+0000 I  NETWORK  [LogicalSessionCacheRefresh] Starting new replica set monitor for rs0/mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb:27017,mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb:27017
+2020-05-02T09:36:23.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:23.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:24.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:24.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:25.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:25.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:26.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:26.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:27.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:27.632+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:28.132+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:28.633+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:29.133+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:29.635+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:30.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:30.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:31.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:31.635+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:32.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:32.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:33.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:33.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:34.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:34.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:35.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:35.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:36.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:36.635+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:37.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:37.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:38.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:38.636+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:39.136+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:39.637+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:40.137+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:40.637+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:41.137+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:41.637+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:42.137+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:42.637+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:43.138+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:43.638+0000 W  NETWORK  [ReplicaSetMonitor-TaskExecutor] Unable to reach primary for set rs0
+2020-05-02T09:36:43.639+0000 I  CONTROL  [LogicalSessionCacheRefresh] Sessions collection is not set up; waiting until next sessions refresh interval: Could not find host matching read preference { mode: "primary" } for set rs0
+2020-05-02T09:36:43.639+0000 I  CONTROL  [LogicalSessionCacheReap] Failed to reap transaction table: FailedToSatisfyReadPreference: Could not find host matching read preference { mode: "primary" } for set rs0
