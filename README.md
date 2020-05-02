@@ -163,9 +163,7 @@ kubectl version --client
 
 Do it. It's great. I mean it.
 
-Official documentation:
-w
-https://kubernetes.io/docs/tasks/tools/install-kubectl/#enabling-shell-autocompletion
+Official documentation: https://kubernetes.io/docs/tasks/tools/install-kubectl/#enabling-shell-autocompletion
 
 Install bash-completion:
 ```bash
@@ -235,7 +233,7 @@ https://www.youtube.com/watch?v=Qb-sP4aM0OM
 It might be a nice way to do since because (quoting the author): 
 *... lxc profile which allows this containers to consume up to 4 GB of RAM...*
 
-So RAM is maybe not allocated upfront like Minikube does.  
+So RAM is maybe not allocated upfront like Minikube does, plus it allows multi-node clusters.
 
 # K3s
 
