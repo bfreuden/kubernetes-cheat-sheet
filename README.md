@@ -2118,6 +2118,28 @@ kubectl describe pv pv-hostpath | tail -n1
 ```text
 Warning  VolumeFailedDelete  10m   persistentvolume-controller  host_path deleter only supports /tmp/.+ but received provided /kube
 ```
+
+There is a ``Recycle`` policy as well, but it is deprecated (it might not work) allowing 
+to do an automatic ``rm -rf /kube/*`` when the volume :
+```yaml
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-hostpath
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  persistentVolumeReclaimPolicy: Recycle # automatically rm -rf /kube/*
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/kube"
+```
+
 So we can see HostPath has a lot of constraints...
 
 ### Troubleshooting PV deletion
@@ -2483,9 +2505,17 @@ kubectl delete secret secret-demo
 
 https://youtu.be/r_ZEpPTCcPE?t=73
 
-Statefulsets are pods with a unique name, a unique network identity, a unique stable storage and an ordered provisioning.
+Official documentation: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/
 
-Unique name: if the stateful set is called ``web``, pods will be called ``web-0``, ``web-1``, ``web-2``, ``web-3``
+Statefulsets are pods with a unique name, a unique stable network identity, a unique stable storage and an ordered provisioning.
+
+Pods of a statefulset are named ``$(statefulset name)-$(ordinal)``. 
+So if the statefulset is called ``web``, pods will be called ``web-0``, ``web-1``, ``web-2``, ``web-3``
+
+Unlike deployments (that basically consist in multiple independent pods) pods of a statefulset 
+known each other and have a way to communicate between each other through that unique stable network identity (hostname).
+That stable hostname is derived from statefulset, headless service and namespace names:
+``$(statefulset name)-$(ordinal)-$(service name).$(namespace).svc.cluster.local``
 
 Ordered provisioning: 
 * when creating/starting the pods the order will be ``web-0``, then ``web-1``, etc...
@@ -2567,7 +2597,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: nginx-headless   # this headless service is mandatory
-  labels:                # it will link all pods of the statefulset
+  labels:                # it will allow all pods of the statefulset to known and connect each other
     run: nginx-sts-demo  # and guarantee a unique network identity for each pod
 spec:
   ports:
@@ -4979,6 +5009,11 @@ kubectl delete pvc datadir-mymongo-mongodb-primary-0
 kubectl delete pvc datadir-mymongo-mongodb-secondary-0
 kubectl delete pvc datadir-mymongo-mongodb-secondary-1
 kubectl delete -f mongodb-nfs-pvs.yaml
+```
+Delete the PV content:
+```bash
+ansible -b node2,node3 -a "rm -rf /var/kubernetes/mongovol0/data"
+ansible -b node2,node3 -a "rm -rf /var/kubernetes/mongovol1/data"
 ```
 
 ### Conclusion
