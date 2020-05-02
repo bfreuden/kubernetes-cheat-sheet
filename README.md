@@ -4644,6 +4644,11 @@ sudo apt install python-certbot-apache
 sudo apt install certbot
 sudo certbot --apache
 ```
+Or, if you don't want to use apache, you can simply ask certbot to generate the certificate 
+(requires a DNS challenge, thus the ability to add a TXT record to your DNS entry):
+```bash
+sudo certbot certonly --manual -d "my.real.domain" --agree-tos --no-bootstrap
+```
 At the end of the procedure certbot is showing:
 ```text
 IMPORTANT NOTES:
