@@ -118,7 +118,7 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [Create Persistent Volumes](#create-persistent-volumes)
     + [Install the chart](#install-the-chart)
     + [Ingress](#ingress)
-    + [Expose MongoDB using a LoadBalancer](#expose-mongodb-using-a-loadbalancer)
+    + [Expose using a LoadBalancer](#expose-using-a-loadbalancer)
     + [Java driver](#java-driver)
     + [Uninstall](#uninstall-1)
     + [Conclusion](#conclusion)
@@ -130,6 +130,7 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
       - [Let the operator install Elasticsearch](#let-the-operator-install-elasticsearch)
       - [Expose Elasticsearch using a LoadBalancer](#expose-elasticsearch-using-a-loadbalancer)
       - [Install Kibana](#install-kibana)
+      - [Install Filebeat](#install-filebeat)
       - [Uninstall](#uninstall-2)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
@@ -5393,6 +5394,72 @@ And open in your browser: https://localhost:5601/
 
 Provide the Elasticsearch credentials (see above).
 
+
+#### Install Filebeat
+
+Download the Filebeat Kubernetes manifest:
+```bash
+curl -L -O https://raw.githubusercontent.com/elastic/beats/master/deploy/kubernetes/filebeat-kubernetes.yaml
+```
+Then edit it to change some values:
+* Replace all ``kube-system`` with ``default``: Filebeat must be installed in the same namespace as Elasticsearch (``default`` in that example)
+* Replace all ``docker.elastic.co/beats/filebeat:8.0.0`` with ``docker.elastic.co/beats/filebeat:7.6.2`` (the 8.0.0 does not exist yet)
+* Add ``ssl.certificate_authorities`` section under ``output.elasticsearch``
+```yaml
+    output.elasticsearch:
+      hosts: ['${ELASTICSEARCH_HOST:elasticsearch}:${ELASTICSEARCH_PORT:9200}']
+      username: ${ELASTICSEARCH_USERNAME}
+      password: ${ELASTICSEARCH_PASSWORD}
+      ssl.certificate_authorities:
+        - /etc/certificate/ca.crt
+```
+* Add a volume to the DaemonSet in order to mount the certificates (the secret is named after your Elasticsearch installation: ``quickstart`` in that example)
+```yaml
+      volumes:
+      - name: certs
+        secret:
+          secretName: quickstart-es-http-certs-public
+```
+* Mount the volume in the DaemonSet:
+```yaml
+        volumeMounts:
+        - name: certs
+          mountPath: /etc/certificate/ca.crt
+          readOnly: true
+          subPath: ca.crt
+```
+* Change the value of the ``ELASTICSEARCH_HOST`` variable to the name of the service (named after your Elasticsearch installation: ``quickstart`` in that example):
+```yaml
+        env:
+        - name: ELASTICSEARCH_HOST
+          value: https://quickstart-es-http
+``` 
+* Change the value of the ``ELASTICSEARCH_PASSWORD`` variable to the name of the service:
+```yaml
+        env:
+        - name: ELASTICSEARCH_PASSWORD
+          value: yourpasswordhere
+```
+And finally deploy the manifest:
+```bash
+kubectl create -f filebeat-kubernetes.yaml
+```
+Once everything is started you should see in logs of each filebeat pod that it has established 
+a connection with Elasticsearch:
+```bash
+kubectl logs filebeat-7x2hd | grep established
+```
+```text
+Connection to backoff(elasticsearch(https://quickstart-es-http:9200)) established
+```
+Then open the Kibana dashboard (see above) and create an index pattern:
+
+https://localhost:5601/
+
+Details about that step here (plus an overview of how to create visualizations and dashboards):
+
+https://youtu.be/fNMmnN8gLCw?t=793
+
 #### Uninstall
 
 Uninstall Elasticsearch:
@@ -5406,6 +5473,10 @@ kubectl delete -f elasticsearch-hostpath-pvs.yaml
 Uninstall Kibana:
 ```bash
 kubectl delete kibana quickstart
+```
+Uninstall Filebeat:
+```bash
+kubectl delete -f filebeat-kubernetes.yaml
 ```
 There should be nothing left:
 ```bash
