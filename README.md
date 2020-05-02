@@ -2120,6 +2120,32 @@ Warning  VolumeFailedDelete  10m   persistentvolume-controller  host_path delete
 ```
 So we can see HostPath has a lot of constraints...
 
+### Troubleshooting PV deletion
+
+Sometimes PVs are stuck in the ``Terminating`` status after deletion (even though the PVC has actually been deleted):
+```text
+NAME                      CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS        CLAIM                                                STORAGECLASS   REASON   AGE
+pv-hostpath-mongovol1     8Gi        RWO            Retain           Terminating   mongodb/datadir-mymongo-mongodb-primary-0            mongovol                24h
+```
+There is a workaround to that problem. Edit the PV and remove the ``finalizers`` entry and save:
+```bash
+kubectl edit pv pv-hostpath-mongovol1
+```
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  annotations:
+    pv.kubernetes.io/bound-by-controller: "yes"
+  creationTimestamp: "2020-05-01T11:40:52Z"
+  deletionGracePeriodSeconds: 0
+  deletionTimestamp: "2020-05-02T11:34:49Z"
+  finalizers:                               # remove this line
+  - kubernetes.io/pv-protection             # remove this line
+  labels:
+    type: local
+```
+
 ### NFS Volumes
 
 https://youtu.be/to14wmNmRCI
@@ -4741,7 +4767,7 @@ The documentation is describing all parameters of the chart.
 
 ### Warning 
 
-When restarting the cluster it looks like the MongoDB replica set may become invalid:
+When restarting the cluster it looks like the MongoDB replica is always becoming invalid:
 ```bash
 kubectl exec -it mymongo-mongodb-primary-0 -- /bin/bash
 mongo -uroot -psecretpassword
@@ -4749,6 +4775,52 @@ mongo -uroot -psecretpassword
 rs.conf()
 rs.status()
 ```
+```json
+{
+	"ok" : 0,
+	"errmsg" : "Our replica set config is invalid or we are not a member of it",
+	"code" : 93,
+	"codeName" : "InvalidReplicaSetConfig"
+}
+```
+
+When having a look at primary and secondary logs:
+```bash
+kubectl logs mymongo-mongodb-primary-0 mongodb-primary | grep -v -E "(connection accepted)|(end connection)|(received client metadata)|(Successfully authenticated)"
+kubectl logs mymongo-mongodb-secondary-0 mongodb-secondary | grep -v -E "(connection accepted)|(end connection)|(received client metadata)|(Successfully authenticated)"
+```
+We can see those errors:
+```text
+2020-05-02T09:06:39.374+0000 W  NETWORK  [replexec-0] getaddrinfo("mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb") failed: Name or service not known
+2020-05-02T09:06:57.771+0000 W  NETWORK  [replexec-0] getaddrinfo("mymongo-mongodb-arbiter-0.mymongo-mongodb-headless.mongodb") failed: Name or service not known
+2020-05-02T09:07:23.836+0000 W  NETWORK  [replexec-0] getaddrinfo("mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb") failed: Name or service not known
+2020-05-02T09:08:01.350+0000 W  REPL     [replexec-0] Locally stored replica set configuration does not have a valid entry for the current node; waiting for reconfig or remote heartbeat; Got "NodeNotFound: No host described in new configuration 3 for replica set rs0 maps to this node" while validating
+2020-05-02T09:08:01.350+0000 I  REPL     [replexec-0] This node is not a member of the config
+2020-05-02T09:08:01.350+0000 I  REPL     [replexec-0] transition to REMOVED from STARTUP
+```
+The problem is those hostnames are actually correct. If you run:
+```bash
+kubectl run myshell -it --rm --image busybox -- sh
+ping mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb
+ping mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb
+ping mymongo-mongodb-arbiter-0.mymongo-mongodb-headless.mongodb
+```
+Then hostnames are actually resolved:
+```bash
+PING mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb (10.233.92.177): 56 data bytes
+64 bytes from 10.233.92.177: seq=0 ttl=62 time=0.545 ms
+PING mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb (10.233.96.77): 56 data bytes
+64 bytes from 10.233.96.77: seq=0 ttl=62 time=0.597 ms
+PING mymongo-mongodb-arbiter-0.mymongo-mongodb-headless.mongodb (10.233.90.213): 56 data bytes
+64 bytes from 10.233.90.213: seq=0 ttl=63 time=0.099 ms
+```
+So it might be possible that DNS Kubernetes DNS resolution is not operational when pods are starting. 
+
+This has already been reported: 
+
+https://github.com/kubernetes/kubernetes/issues/54798
+
+Last message of the thread is: *Actually, I think that an application should be more robust and keep trying or just crash and let k8s restart it. Sorry, but I'm not aware of a method to delay a pod start before dns server update records for some other pods.*
 
 ### Create Persistent Volumes
 
@@ -4854,7 +4926,18 @@ There is a *Configure Ingress* paragraph in the chart documentation: https://hub
 
 It is suggesting that it requires a specific configuration of the nginx ingress controller.
 
-This video is describing another option using MetalLB load balancer:
+#### Expose MongoDB using a LoadBalancer
+
+Requires MetalLB: see [Install MetalLB](#install-metallb)
+
+Change the ``mymongo-mongodb`` service from ClusterIP to LoadBalancer:
+```bash
+kubectl patch svc mymongo-mongodb -p '{"spec": {"type": "LoadBalancer"}}'
+```
+Please note that this will create a loab balancer on arbiter, primary and secondary pods.
+It will not give you access to them individually. 
+
+This video is describing exposing each pod using MetalLB load balancer:
 
 https://youtu.be/DE83o7SR0xY
 
