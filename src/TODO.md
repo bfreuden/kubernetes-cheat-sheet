@@ -134,3 +134,5 @@ https://hub.helm.sh/charts/elastic/elasticsearch
 
 https://hub.helm.sh/charts/bitnami/elasticsearch
 
+#### Filebeat
+
