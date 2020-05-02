@@ -50,6 +50,7 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
   * [Init containers](#init-containers)
   * [Persistent volumes and claims](#persistent-volumes-and-claims)
     + [HostPath](#hostpath)
+    + [Troubleshooting PV deletion](#troubleshooting-pv-deletion)
     + [NFS Volumes](#nfs-volumes)
   * [Getting started with Helm](#getting-started-with-helm)
     + [Installing Helm](#installing-helm)
@@ -117,6 +118,7 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [Create Persistent Volumes](#create-persistent-volumes)
     + [Install the chart](#install-the-chart)
     + [Ingress](#ingress)
+    + [Expose MongoDB using a LoadBalancer](#expose-mongodb-using-a-loadbalancer)
     + [Java driver](#java-driver)
     + [Uninstall](#uninstall-1)
     + [Conclusion](#conclusion)
@@ -4956,7 +4958,7 @@ There is a *Configure Ingress* paragraph in the chart documentation: https://hub
 
 It is suggesting that it requires a specific configuration of the nginx ingress controller.
 
-#### Expose MongoDB using a LoadBalancer
+### Expose using a LoadBalancer
 
 Requires MetalLB: see [Install MetalLB](#install-metallb)
 
