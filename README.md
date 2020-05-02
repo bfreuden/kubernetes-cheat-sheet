@@ -720,6 +720,10 @@ We will start an interactive shell in a busybox container (this will download th
 ```bash
 kubectl run myshell -it --image busybox -- sh
 ```
+If required, note that we can force a pull of the image using the ``--image-pull-policy Always`` option: 
+```bash
+kubectl run myshell -it --image busybox --image-pull-policy Always -- sh
+```
 
 After that you have a pod that is running on node3 (watch kubectl get all -o wide):
 ```text
