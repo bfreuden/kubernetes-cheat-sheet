@@ -5288,7 +5288,7 @@ spec:
       config:
         node.master: true
         node.data: true
-        node.ingest: false  # disable ingest
+        node.ingest: false  # document processing
         node.store.allow_mmap: true # allow use of mmap
       volumeClaimTemplates:  # use our elasticvol storage class
         - metadata:
@@ -5583,7 +5583,7 @@ docker build -t docker.my.own.domain/my-alpine:v1 .
 ```
 Note that, from docker point of view, the string before the ``/`` is: 
 * either a hostname if containing ``.`` or ``:``
-* or a docker hub username
+* or a docker hub username or organisation
 
 Login:
 ```bash

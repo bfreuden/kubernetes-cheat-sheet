@@ -6,11 +6,11 @@ spec:
   version: 7.6.2
   nodeSets:
     - name: default
-      count: 1
+      count: 3
       config:
         node.master: true
         node.data: true
-        node.ingest: false  # disable ingest
+        node.ingest: false
         node.store.allow_mmap: true # allow use of mmap
       volumeClaimTemplates:  # use our elasticvol storage class
         - metadata:

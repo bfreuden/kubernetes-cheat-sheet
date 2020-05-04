@@ -7,7 +7,6 @@ metadata:
     type: local
 spec:
   storageClassName: mongovol
-  persistentVolumeReclaimPolicy: Recycle
   capacity:
     storage: 8Gi
   accessModes:
@@ -23,7 +22,6 @@ metadata:
     type: local
 spec:
   storageClassName: mongovol
-  persistentVolumeReclaimPolicy: Recycle
   capacity:
     storage: 8Gi
   accessModes:
