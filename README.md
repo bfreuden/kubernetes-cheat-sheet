@@ -890,7 +890,7 @@ kubectl create -f /tmp/nginx.yml -f /tmp/nginx-svc.yml
 ```
 And delete it from yaml files:
 ```bash
-kubectl create -f /tmp/nginx.yml -f /tmp/nginx-svc.yml
+kubectl delete -f /tmp/nginx.yml -f /tmp/nginx-svc.yml
 ```
 
 ## Pod, replicaset and deployment
