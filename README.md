@@ -5698,6 +5698,11 @@ Then you can see that the job is scheduled on a node having an nvidia GPU and yo
 ```bash
 kubectl logs nvidia-smi
 ```
+According to the documentation: 
+*if you don't request GPUs when using the device plugin with NVIDIA images all the GPUs on the machine will be exposed inside your container.* 
+
+On my cluster, when I don't specify the limit, the job is still scheduled on the the nvidia node (but who knows... it might be out of luck).
+
 Cleanup:
 ```bash
 kubectl delete job nvidia-smi
