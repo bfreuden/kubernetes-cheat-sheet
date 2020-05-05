@@ -138,6 +138,7 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [Test the registry](#test-the-registry)
     + [Declare the server in Kubernetes](#declare-the-server-in-kubernetes)
     + [Test Kubernetes communication with registry](#test-kubernetes-communication-with-registry)
+  * [Running nvidia GPU workloads](#running-nvidia-gpu-workloads)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -5632,3 +5633,73 @@ Cleanup:
 ```bash
 kubectl delete pod myalpine
 ```
+
+## Running nvidia GPU workloads
+
+It is possible to schedule GPU workloads using this nvidia plugin:
+
+https://github.com/NVIDIA/k8s-device-plugin
+
+It requires the installation of nvidia-docker2 on cluster nodes having an nvidia GPU.
+
+This can be done using the following ``nvidia.yaml`` ansible playbook:
+```yaml
+- hosts: nvidia
+  become: yes
+  roles:
+    - nvidia.nvidia_driver
+    - nvidia.nvidia_docker
+```
+Then by running:
+```bash
+sudo ansible-galaxy install nvidia.nvidia_driver
+sudo ansible-galaxy install nvidia.nvidia_docker
+ansible-playbook nvidia.yaml
+```
+Then to enable the nvidia runtime as the default runtime in ``/etc/docker/daemon.json``:
+```json
+{
+    "default-runtime": "nvidia",
+    "runtimes": {
+        "nvidia": {
+            "path": "/usr/bin/nvidia-container-runtime",
+            "runtimeArgs": []
+        }
+    }
+}
+```
+Once (and only once!) that is done, install the Kubernetes plugin (it will install a daemonset in the ``kube-system`` namespace:
+```bash
+kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/1.0.0-beta6/nvidia-device-plugin.yml
+```
+Then you can use the ``nvidia.com/gpu: 1`` option in the ``limits`` section. 
+For instance let's deploy this ``nvidia-smi.yaml`` job manifest:
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nvidia-smi
+spec:
+  template:
+    spec:
+      containers:
+        - name: cuda-container
+          image: nvidia/cuda:9.0-cudnn7-devel
+          command: ["nvidia-smi"]
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+      restartPolicy: Never
+```
+```bash
+kubectl create -f nvidia-smi.yaml
+```
+Then you can see that the job is scheduled on a node having an nvidia GPU and you will see the ``nvidia-smi`` output in the logs:
+```bash
+kubectl logs nvidia-smi
+```
+Cleanup:
+```bash
+kubectl delete job nvidia-smi
+```
+
