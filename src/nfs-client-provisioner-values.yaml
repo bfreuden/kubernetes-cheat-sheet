@@ -1,0 +1,9 @@
+nfs:
+  server: node1
+  path: /srv/nfs/kubedynamic
+  mountOptions: [ bg, nolock, noatime ]
+storageClass:
+  archiveOnDelete: false
+  defaultClass: true
+  # you might want to prevent the provisioner from auto deleting mongo volumes...
+  # reclaimPolicy: Retain

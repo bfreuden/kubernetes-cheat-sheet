@@ -1,19 +1,4 @@
 
-## Dynamically provision NFS persistent volumes
-
-https://youtu.be/AavnQzWDTEk?t=63
-
-(todo)
-
-In the previous sections we saw that when a cluster user creates a PVC, the cluster administrator has
-to manually create PVs. This is time consuming.
-
-When using Kubernetes in the cloud, there is the notion of dynamic provisioning:
-* you make a volume claim
-* a volume is created automatically
-* you delete your app and your claim
-* the volume is automatically deleted
-
 ## Using Vertical Pod Autoscaling
 
 https://www.youtube.com/watch?v=fLXqEUI_WRg&list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0&index=78
@@ -134,5 +119,5 @@ https://hub.helm.sh/charts/elastic/elasticsearch
 
 https://hub.helm.sh/charts/bitnami/elasticsearch
 
-#### Filebeat
+
 

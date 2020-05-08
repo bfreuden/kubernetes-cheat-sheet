@@ -1932,10 +1932,10 @@ Life cycle of PV is given by it ReclaimPolicy:
 * Recycle: deprecated, more for dynamic provisioning
 * Delete: when pod is delete, it will delete the PV and its data
 
-Access Mode:
-* RWO: (read-write once) only the first node (?) will be able to write, others will only be able to read 
-* RWM: (read-write many) all nodes can read and write
-* RO: read-only
+Access Mode (to be confirmed):
+* ReadWriteOnce: the volume can only be mounted with read-write access on a single cluster node (possibly by many pods scheduled on that node)
+* ReadWriteMany: the volume can only be mounted with read-write access on many cluster nodes (and by many pods)
+* ReadOnlyMany: the volume can be mounted with read-only access on many cluster nodes (and by many pods)
 
 ### HostPath
 
@@ -2333,6 +2333,10 @@ This is no longer true with Helm 3.x.
 
 Just download the tgz from https://github.com/helm/helm/releases and to extract the executable somewhere.
 
+If you want be able to install ``stable/*`` charts visible on https://hub.helm.sh/, then run:
+```bash
+helm repo add stable https://kubernetes-charts.storage.googleapis.com
+```
 
 ### Installing Helm 2.x (deprecated)
 
@@ -2562,7 +2566,7 @@ Let's install an NFS server on node1 using this ``site2.yaml`` playbook:
 ```bash
 # if not done already
 sudo ansible-galaxy install geerlingguy.nfs
-ansible-playbook site2.yml
+ansible-playbook site2.yaml
 ```
 And install NFS client on all machines:
 ```bash
@@ -2709,6 +2713,179 @@ And delete the headless service too:
 ```bash
 kubectl delete service nginx-headless
 ```
+
+## Dynamically provision NFS persistent volumes
+
+There are two approaches:
+* NFS provisioner: deploying an NFS server in Kubernetes
+* NFS client provisioner: installing an NFS server accessible from Kubernetes
+
+It looks like there are many options out there:
+* Rook NFS provisioner: https://rook.io/docs/rook/master/nfs.html
+* Quay.io NFS provisioner: https://quay.io/repository/kubernetes_incubator/nfs-provisioner
+* Quay.io NFS client provisioner:  https://quay.io/repository/external_storage/nfs-client-provisioner
+
+As there is a Helm chart for the last one, let's go for it:
+
+https://hub.helm.sh/charts/stable/nfs-client-provisioner 
+
+The Helm chart will automate the procedure described in this video:
+
+https://youtu.be/AavnQzWDTEk?t=448
+
+### Install NFS server
+
+Let's install an NFS server on node1 using this ``site3.yaml`` playbook:
+```yaml
+---
+- hosts: node1
+  become: yes
+  vars:
+    nfs_exports:
+    - "/srv/nfs/kubedynamic *(rw,sync)"
+  tasks:
+    - file: path=/srv/nfs/kubedynamic mode=0777 state=directory
+  roles:
+    - geerlingguy.nfs
+```
+```bash
+# if not done already
+sudo ansible-galaxy install geerlingguy.nfs
+ansible-playbook site3.yaml
+```
+And install NFS client on all machines:
+```bash
+ansible k8s -b -m apt -a "name=nfs-common state=present"
+```
+### Install the provisioner
+
+Create a namespace (optional):
+```bash
+kubectl create ns 
+```
+Install the chart by providing the NFS server hostname and share:
+```bash
+helm install -n nfs-client-provisioner  --set nfs.server=node1,nfs.path=/srv/nfs/kubedynamic,storageClass.archiveOnDelete=false  nfs-client-provisioner stable/nfs-client-provisioner
+```
+It will create a some stuff:
+```bash
+kubectl -n nfs-client-provisioner get clusterrole,clusterrolebinding,role,rolebinding,pods,deploy,rs | grep nfs
+```
+```text
+clusterrole.rbac.authorization.k8s.io/nfs-client-provisioner-runner                                          11m
+clusterrolebinding.rbac.authorization.k8s.io/run-nfs-client-provisioner                             11m
+role.rbac.authorization.k8s.io/leader-locking-nfs-client-provisioner   11m
+rolebinding.rbac.authorization.k8s.io/leader-locking-nfs-client-provisioner   11m
+pod/nfs-client-provisioner-7658d8d9db-67gn8   1/1     Running   0          11m
+deployment.apps/nfs-client-provisioner   1/1     1            1           11m
+replicaset.apps/nfs-client-provisioner-7658d8d9db   1         1         1       11m
+```
+### Install the provisioner with MongoDB compatible options:
+
+You might want to provide additional options for MongoDB using this ``nfs-client-provisioner-values.yaml`` Helm values file:
+```yaml
+nfs:
+  server: node1
+  path: /srv/nfs/kubedynamic
+  mountOptions: [ bg, nolock, noatime ] # recommended mount options
+storageClass:
+  archiveOnDelete: false
+  defaultClass: true
+  # you might want to prevent the provisioner from auto deleting mongo volumes...
+  # reclaimPolicy: Retain
+```
+```bash
+helm install -n nfs-client-provisioner -f nfs-client-provisioner-values.yaml nfs-client-provisioner stable/nfs-client-provisioner
+```
+
+### Define NFS as the default storage class
+
+After the installation we have a new storage class on your cluster:
+```bash
+kubectl get storageclasses
+```
+```text
+NAME         PROVISIONER                            RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
+nfs-client   cluster.local/nfs-client-provisioner   Delete          Immediate           true                   31s
+```
+
+If we describe it, we can see that it is not the default class:
+```bash
+kubectl describe storageclasses.storage.k8s.io nfs-client | grep IsDefaultClass
+```
+```text
+IsDefaultClass:        No
+```
+We can make it the default one (that was the ``storageClass.defaultClass`` option of the chart):
+```bash
+kubectl patch storageclass nfs-client -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+```
+
+### Demo
+
+First have a look at the existing volumes:
+```bash
+kubectl get pv | grep -E "CAPACITY|nfs-client"
+```
+There should be no volume like that.
+
+Create the a pvc using this ``nfs-demo-pvc.yaml`` manifest:
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-demo-pvc
+spec:
+  # optional now nfs-client is the default storage class
+  #storageClassName: nfs-client
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+```
+```bash
+kubectl create -f nfs-demo-pvc.yaml
+```
+Now have look at the existing volumes and claims:
+```bash
+kubectl get pv | grep -E "CAPACITY|nfs-client"
+kubectl get pvc | grep -E "CAPACITY|nfs-client"
+```
+```text
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM                                                STORAGECLASS           REASON   AGE
+pvc-9f622180-4789-4e26-bdd4-41f07294fab4   100Mi      RWO            Delete           Bound       default/nfs-demo-pvc                                 nfs-client                      2m3s
+```
+```text
+NAME                                         STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS           AGE
+nfs-demo-pvc                                 Bound    pvc-9f622180-4789-4e26-bdd4-41f07294fab4   100Mi      RWO            nfs-client             3m14s
+```
+So the PV has automatically been created.
+
+We can see that a new directory has been created on the NFS server:
+```bash
+ansible node1 -a "ls /srv/nfs/kubedynamic"
+```
+```text
+node1 | CHANGED | rc=0 >>
+default-nfs-demo-pvc-pvc-9f622180-4789-4e26-bdd4-41f07294fab4
+```
+
+You can create a busybox pod using the pvc and play with the ``/mydata`` directory:
+```bash
+kubectl create -f nfs-demo-pod.yaml
+kubectl -n mongodb wait pod/busybox --for=condition=Ready --timeout=-1s
+kubectl exec -it busybox -- sh
+touch /mydata/hello
+exit
+kubectl delete pod busybox
+```
+
+And if we delete the claim then the volume is deleted and the directory is deleted on the NFS server:
+```bash
+kubectl delete pvc nfs-demo-pvc
+```
+
 
 ## Create a Secret based on existing Docker credentials
 
@@ -5708,3 +5885,144 @@ Cleanup:
 kubectl delete job nvidia-smi
 ```
 
+## Dynamic volume provisioning with Rook and Ceph
+
+Ceph is a distributed filesystem that will allow dynamic volume provisioning on bare metal clusters.
+
+(not tested) below is only a transcript of https://youtu.be/wIRMxl_oEMM
+ 
+### Install Ceph with Rook
+
+```bash
+git clone https://github.com/rook/rook.git
+cd rook/cluster/examples/kubernetes/ceph
+```
+Then you want to look at that video to know how to edit the ``cluster.yaml`` file:
+https://youtu.be/wIRMxl_oEMM?t=530
+
+You might want to tweak the following parameters.
+
+Number of Ceph monitors:
+```yaml
+  mon:
+    # can be 1 for test clusters
+    count: 3
+    # are they allowed to run on the same k8s node 
+    # can be true for test clusters
+    allowMultiplePerNode: false
+```
+Enable monitoring:
+```yaml
+  monitoring:
+    # requires Prometheus to be pre-installed
+    enabled: false
+```
+Affinity rules:
+```yaml
+#  placement:
+#    all:
+```
+Whether you want to use all nodes of your cluster:
+```yaml
+  storage: # cluster level storage configuration and selection
+    useAllNodes: true # changed to false in this example
+    useAllDevices: true
+```
+If not, specify the nodes:
+```yaml
+# Individual nodes and their config can be specified as well, but 'useAllNodes' above must be set to false. Then, only the named
+# nodes below will be used as storage resources.  Each node's 'name' field should match their 'kubernetes.io/hostname' label.
+#    nodes:
+#    - name: "172.17.4.201"
+#      devices: # specific devices to use for storage can be specified for each node
+#      - name: "sdb"
+```
+
+```bash
+kubectl create -f common.yaml
+kubectl create -f operator.yaml
+kubectl create -f cluster.yaml
+```
+You can watch the operator being deployed:
+```bash
+kubectl -n rook-ceph get pod
+```
+It can take a few minutes. When you see ``rook-ceph-osd-prepare`` pods, you're close: 
+they will setup Ceph Object Storage Daemon (OSDs).
+
+In the end you want to wait for ``rook-ceph-osd`` pods.
+
+Then we want to create storage classes:
+```bash
+find . -name storageclass.yaml
+```
+```text
+./flex/storageclass.yaml
+./csi/cephfs/storageclass.yaml
+./csi/rbd/storageclass.yaml
+```
+Let's install rdb (by default reclaim policy of volumes is Delete):
+```bash
+kubectl create -f ./csi/rbd/storageclass.yaml
+```
+Now create the (Ceph) toolbox:
+```bash
+kubectl create -f toolbox.yaml
+```
+It is going to create a ``rook-ceph-tools`` pod, when it is running, run a bash shell inside of it:
+```bash
+kubectl -n rook-ceph -it rook-ceph-tools-jsdfhlqsjf -- /bin/bash
+```
+Once inside:
+```bash
+# everything should look ok
+ceph status
+ceph osd status
+exit
+```
+You can further add new nodes to the Ceph cluster by adding them to ``cluster.yaml`` 
+and them ``kubectl apply -f cluster.yaml`` once again.
+
+### Ceph demo
+
+https://youtu.be/wIRMxl_oEMM?t=1480
+
+Create a ```pcv.yaml``` manifest:
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: firstpvc
+  labels:
+    app: example
+spec:
+  storageClassName: rook-ceph-block
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+```
+```bash
+# display existing pvs and pvcs
+kubectl get pv
+kubectl get pvc
+# create the pv
+kubectl create -f pvc.yaml
+```
+The PVC should first have the ``Pending`` status and you should soon have a new volume
+bound to your pvc.
+
+Now you can create a pod using this volume, manually write some data into it (exec -it).
+
+Then if you go to ceph tools once again
+```bash
+kubectl -n rook-ceph -it rook-ceph-tools-jsdfhlqsjf -- /bin/bash
+```
+Once inside:
+```bash
+# here you should see some IO
+ceph status
+# here you should see the volume of data written to the various Ceph nodes
+ceph osd status
+```
