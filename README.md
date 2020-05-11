@@ -2742,6 +2742,11 @@ The Helm chart will automate the procedure described in this video:
 
 https://youtu.be/AavnQzWDTEk?t=448
 
+### Warning
+
+On my cluster (?) that provisioner does not seem to be very reliable actually removing PVs with
+``Delete`` reclaim policy.
+
 ### Install NFS server
 
 Let's install an NFS server on node1 using this ``site3.yaml`` playbook:
@@ -4999,60 +5004,15 @@ The documentation is describing all parameters of the chart.
 
 ### Warning 
 
-When restarting the cluster it looks like the MongoDB replica is always becoming invalid:
-```bash
-kubectl exec -it mymongo-mongodb-primary-0 -- /bin/bash
-mongo -uroot -psecretpassword
-# mongo shell:
-rs.conf()
-rs.status()
-```
-```json
-{
-	"ok" : 0,
-	"errmsg" : "Our replica set config is invalid or we are not a member of it",
-	"code" : 93,
-	"codeName" : "InvalidReplicaSetConfig"
-}
-```
+When restarting the cluster (or simply deleting all mongodb pods) the MongoDB replica set
+can becoming invalid (at least on some Kubernetes clusters):
 
-When having a look at primary and secondary logs:
-```bash
-kubectl logs mymongo-mongodb-primary-0 mongodb-primary | grep -v -E "(connection accepted)|(end connection)|(received client metadata)|(Successfully authenticated)"
-kubectl logs mymongo-mongodb-secondary-0 mongodb-secondary | grep -v -E "(connection accepted)|(end connection)|(received client metadata)|(Successfully authenticated)"
-```
-We can see those errors:
-```text
-2020-05-02T09:06:39.374+0000 W  NETWORK  [replexec-0] getaddrinfo("mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb") failed: Name or service not known
-2020-05-02T09:06:57.771+0000 W  NETWORK  [replexec-0] getaddrinfo("mymongo-mongodb-arbiter-0.mymongo-mongodb-headless.mongodb") failed: Name or service not known
-2020-05-02T09:07:23.836+0000 W  NETWORK  [replexec-0] getaddrinfo("mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb") failed: Name or service not known
-2020-05-02T09:08:01.350+0000 W  REPL     [replexec-0] Locally stored replica set configuration does not have a valid entry for the current node; waiting for reconfig or remote heartbeat; Got "NodeNotFound: No host described in new configuration 3 for replica set rs0 maps to this node" while validating
-2020-05-02T09:08:01.350+0000 I  REPL     [replexec-0] This node is not a member of the config
-2020-05-02T09:08:01.350+0000 I  REPL     [replexec-0] transition to REMOVED from STARTUP
-```
-The problem is those hostnames are actually correct. If you run:
-```bash
-kubectl run myshell -it --rm --image busybox -- sh
-ping mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb
-ping mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb
-ping mymongo-mongodb-arbiter-0.mymongo-mongodb-headless.mongodb
-```
-Then hostnames are actually resolved:
-```bash
-PING mymongo-mongodb-primary-0.mymongo-mongodb-headless.mongodb (10.233.92.177): 56 data bytes
-64 bytes from 10.233.92.177: seq=0 ttl=62 time=0.545 ms
-PING mymongo-mongodb-secondary-0.mymongo-mongodb-headless.mongodb (10.233.96.77): 56 data bytes
-64 bytes from 10.233.96.77: seq=0 ttl=62 time=0.597 ms
-PING mymongo-mongodb-arbiter-0.mymongo-mongodb-headless.mongodb (10.233.90.213): 56 data bytes
-64 bytes from 10.233.90.213: seq=0 ttl=63 time=0.099 ms
-```
-So it might be possible that DNS Kubernetes DNS resolution is not operational when pods are starting. 
+https://github.com/bitnami/bitnami-docker-mongodb/issues/211
 
-This has already been reported: 
+If you have that problem it is related to the ``readinessProbe`` and you should
+disable using ``readinessProbe.enabled=false`` Helm chart parameter.
 
-https://github.com/kubernetes/kubernetes/issues/54798
-
-Last message of the thread is: *Actually, I think that an application should be more robust and keep trying or just crash and let k8s restart it. Sorry, but I'm not aware of a method to delay a pod start before dns server update records for some other pods.*
+It is unsure it is a rock-solid solution though.
 
 ### Create Persistent Volumes
 
@@ -5381,6 +5341,10 @@ Elastic Cloud on Kubernetes seems to be part of the Enterprise offer of Elastics
 so it is probably not free:
 
 https://www.elastic.co/fr/subscriptions
+
+However there are evidences showing that it will always be free:
+
+https://www.elastic.co/fr/blog/introducing-elastic-cloud-on-kubernetes-the-elasticsearch-operator-and-beyond
 
 This videos is showing how to use it: https://youtu.be/qjnT0pU0IRo?t=242
 

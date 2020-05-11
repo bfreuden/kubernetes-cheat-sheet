@@ -1,1 +1,10 @@
 /.idea/
+/src/11-ClusterIssuer-personal.yaml
+/src/12-realdomain-ingress-resource-personal.yaml
+/src/crf-suggester-rs.yaml
+/src/mymongo-values-personal.yaml
+/src/mymongo_install.yaml
+/src/mymongonovol.yaml
+/src/mymongovol.yaml
+/src/sherpa-core-rs.yaml
+/src/myvalue.yaml
