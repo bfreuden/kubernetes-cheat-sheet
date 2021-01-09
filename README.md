@@ -378,7 +378,7 @@ which ansible
 which ansible-playbook
 ```
 
-Make sure you're using ansible 2.5 or higher:
+Make sure you're using ansible 2.6 or higher:
 ```bash
 ansible --version
 ```
@@ -391,6 +391,20 @@ Make sure IPv4 forwarding is setup on all machines of the cluster (must return 1
 
 ```bash
 ansible all -a "sysctl net.ipv4.ip_forward"
+```
+
+If it is not the case, you can use this little playbook:
+```yaml
+---
+- name: kubernetes install prerequisites
+  hosts: all
+  become: yes
+  tasks:
+    - name: setup IPv4 forwarding
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        sysctl_set: yes
 ```
 
 Make sure firewall is disabled on the machines:
@@ -425,6 +439,14 @@ Make sure python netaddr is installed:
 pip list | grep netaddr
 ```
 
+If it is not installed: 
+```bash
+# if you are using the ansible of your Linux distribution:
+sudo apt install python-netaddr
+# if you are using ansible from a python env:
+pip install netaddr
+```
+
 Make sure you're using at least Jinja 2.9:
 ```bash
 pip show jinja2
@@ -445,8 +467,14 @@ Then build the inventory:
 CONFIG_FILE=inventory/mycluster/hosts.yaml python contrib/inventory_builder/inventory.py ${IPS[@]}
 ```
 
-Then you certainly want to edit the ``inventory/mycluster/hosts.yaml`` file to replace node1, node2 and node3
+Then you *certainly* want to edit the ``inventory/mycluster/hosts.yaml`` file to replace node1, node2 and node3
 with actual hostnames of the machines because Kubespray will actually rename your machines to node1, node2 and node3!
+It can also be useful if you want to change the roles of your machines.
+
+You might want to have a look at the ``inventory/mycluster$ gedit group_vars/k8s-cluster/k8s-cluster.yml`` file since 
+it is defining the Kubernetes configuration (like the default engine: docker or containerd). 
+
+You might also want to have a look at the ``inventory/mycluster/group_vars/all/all.yml`` file.
 
 And finally launch Kubespray (and go out for lunch since it takes 45 minutes):
 
@@ -462,7 +490,7 @@ RAM usage reported by htop is:
 * 800 MB on master 1
 * 1 GB on master 2 (running nvidia)
 
-CPU usage is around 15% of a core with a idle cluster.
+CPU usage is around 15% of a core with an idle cluster.
 
 ## Update your Ansible inventory
 
@@ -496,7 +524,7 @@ export KUBECONFIG=~/.kube/config.bak:admin.conf
 kubectl config view --flatten > ~/.kube/config
 unset KUBECONFIG
 ```
-Note that we leveraging the ``KUBECONFIG`` environment variable that is containing a list of config files.
+Note that we are leveraging the ``KUBECONFIG`` environment variable that is containing a list of config files.
 Kubetcl will virtually merge those files. The default context will be the default context of the first file.
 
 Now you should see all contexts:
@@ -4908,7 +4936,7 @@ sudo certbot --apache
 Or, if you don't want to use apache, you can simply ask certbot to generate the certificate 
 (requires a DNS challenge, thus the ability to add a TXT record to your DNS entry):
 ```bash
-sudo certbot certonly --manual -d "my.real.domain" --agree-tos --no-bootstrap
+sudo certbot certonly --preferred-challenges=dns --manual -d "my.real.domain" --agree-tos --no-bootstrap
 ```
 At the end of the procedure certbot is showing:
 ```text
