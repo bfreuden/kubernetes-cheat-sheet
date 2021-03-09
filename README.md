@@ -611,8 +611,8 @@ If pings succeed, it means Calico network is working correctly.
 
 From another terminal you can see the pod being created:
 ```bash
-kubectl get nodes
-kubectl get nodes -o wide
+kubectl get pods
+kubectl get pods -o wide
 ```
 
 ## ClusterIP vs. NodePort
@@ -1377,10 +1377,10 @@ kubectl label node node1 env=dev
 kubectl label node node2 env=prod
 ```
 
-Now let's ssh on master machine(s) and edit the :
+Now let's ssh on master machine(s) and edit the ``kube-apiserver.yaml`` file:
 ```bash
 ssh user@node1
-sudo vi /etc/kubernetes/manifests/kube-scheduler.yaml
+sudo vi /etc/kubernetes/manifests/kube-apiserver.yaml
 ```
 Add ``,PodNodeSelector`` to the ``--enable-admission-plugins`` line:
 ```yaml
@@ -5909,7 +5909,7 @@ Then to enable the nvidia runtime as the default runtime in ``/etc/docker/daemon
 ```
 Once (and only once!) that is done, install the Kubernetes plugin (it will install a daemonset in the ``kube-system`` namespace:
 ```bash
-kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/1.0.0-beta6/nvidia-device-plugin.yml
+kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.9.0/nvidia-device-plugin.yml
 ```
 Then you can use the ``nvidia.com/gpu: 1`` option in the ``limits`` section. 
 For instance let's deploy this ``nvidia-smi.yaml`` job manifest:
