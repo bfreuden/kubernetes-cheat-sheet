@@ -3,8 +3,9 @@
 /src/12-realdomain-ingress-resource-personal.yaml
 /src/crf-suggester-rs.yaml
 /src/mymongo-values-personal.yaml
-/src/mymongo_install.yaml
+/src/mymongo_install-personal.yaml
 /src/mymongonovol.yaml
 /src/mymongovol.yaml
 /src/sherpa-core-rs.yaml
 /src/myvalue.yaml
+/src/mymongo_install-personal-tweaked.yaml

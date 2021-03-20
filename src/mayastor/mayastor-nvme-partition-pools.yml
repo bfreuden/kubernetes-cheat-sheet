@@ -1,0 +1,27 @@
+---
+apiVersion: "openebs.io/v1alpha1"
+kind: MayastorPool
+metadata:
+  name: maya-nvme-pool-minicube1
+  namespace: mayastor
+spec:
+  node: minicube1
+  disks: ["/dev/nvme0n1"]
+---
+apiVersion: "openebs.io/v1alpha1"
+kind: MayastorPool
+metadata:
+  name: maya-nvme-pool-minicube2
+  namespace: mayastor
+spec:
+  node: minicube2
+  disks: ["/dev/nvme0n1"]
+---
+apiVersion: "openebs.io/v1alpha1"
+kind: MayastorPool
+metadata:
+  name: maya-nvme-pool-minicube3
+  namespace: mayastor
+spec:
+  node: minicube3
+  disks: ["/dev/nvme0n1"]

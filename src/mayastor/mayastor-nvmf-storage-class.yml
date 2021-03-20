@@ -1,0 +1,11 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: mayastor-nvmf
+parameters:
+  # Set the number of data replicas ("replication factor")
+  repl: '1'
+  # Set the export transport protocol
+  protocol: 'nvmf'
+provisioner: io.openebs.csi-mayastor
+
