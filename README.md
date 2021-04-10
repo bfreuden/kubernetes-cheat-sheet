@@ -30,6 +30,8 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
   * [Update your Ansible inventory](#update-your-ansible-inventory)
   * [Add to kubectl config](#add-to-kubectl-config-1)
   * [First connection](#first-connection)
+  * [Add a worker node to the cluster](#add-a-worker-node-to-the-cluster)
+  * [Remove a worker node from the cluster](#remove-a-worker-node-from-the-cluster)
   * [ClusterIP vs. NodePort](#clusterip-vs-nodeport)
   * [Kubernetes Dashboard](#kubernetes-dashboard)
   * [Upgrade Kubernetes with Kubespray](#upgrade-kubernetes-with-kubespray)
@@ -504,6 +506,9 @@ RAM usage reported by htop is:
 
 CPU usage is around 15% of a core with an idle cluster.
 
+Note that it is probably a good idea to keep your kubespray clone and its generated inventory in
+a safe place for the future.
+
 ## Update your Ansible inventory
 
 We'll keep on using using Ansible below. To prevent from having to type ``-i inventory/mycluster/hosts.yaml`` let's add 
@@ -625,6 +630,119 @@ From another terminal you can see the pod being created:
 ```bash
 kubectl get pods
 kubectl get pods -o wide
+```
+
+## Add a worker node to the cluster
+
+Official documentation: https://github.com/kubernetes-sigs/kubespray/blob/master/docs/getting-started.md#adding-nodes
+
+Open the ``inventory/mycluster/hosts.yaml`` generated during the install.
+It should look like this:
+```yaml
+all:
+  hosts:
+    server1:
+      ansible_host: 192.168.1.36
+      ip: 192.168.1.36
+      access_ip: 192.168.1.36
+    server2:
+      ansible_host: 192.168.1.35
+      ip: 192.168.1.35
+      access_ip: 192.168.1.35
+    server3:
+      ansible_host: 192.168.1.32
+      ip: 192.168.1.32
+      access_ip: 192.168.1.32
+  children:
+    kube-master:
+      hosts:
+        server1:
+        server2:
+    kube-node:
+      hosts:
+        server1:
+        server2:
+        server3:
+    etcd:
+      hosts:
+        server1:
+        server2:
+        server3:
+    k8s-cluster:
+      children:
+        kube-master:
+        kube-node:
+    calico-rr:
+      hosts: {}
+```
+Then simply declare a new host and put it under the kube-node as well:
+```yaml
+all:
+  hosts:
+    server1:
+      ansible_host: 192.168.1.36
+      ip: 192.168.1.36
+      access_ip: 192.168.1.36
+    server2:
+      ansible_host: 192.168.1.35
+      ip: 192.168.1.35
+      access_ip: 192.168.1.35
+    server3:
+      ansible_host: 192.168.1.32
+      ip: 192.168.1.32
+      access_ip: 192.168.1.32
+    server4: # the new worker node
+      ansible_host: 192.168.1.32
+      ip: 192.168.1.32
+      access_ip: 192.168.1.32
+  children:
+    kube-master:
+      hosts:
+        server1:
+        server2:
+    kube-node:
+      hosts:
+        server1:
+        server2:
+        server3:
+        server4: # the new worker node
+    etcd:
+      hosts:
+        server1:
+        server2:
+        server3:
+    k8s-cluster:
+      children:
+        kube-master:
+        kube-node:
+    calico-rr:
+      hosts: {}
+```
+Then run the following command in your kubespray clone:
+```bash
+ansible-playbook -i inventory/mycluster/hosts.yaml  scale.yml -b -v --private-key=~/.ssh/id_rsa
+```
+A few minutes later it's done:
+```bash
+kubectl get nodes
+```
+```text
+NAME        STATUS   ROLES    AGE   VERSION
+server1   Ready    master   90d   v1.19.6
+server2   Ready    master   90d   v1.19.6
+server3   Ready    <none>   90d   v1.19.6
+server4   Ready    <none>   29m   v1.19.6
+```
+
+## Remove a worker node from the cluster
+
+Official documentation: https://github.com/kubernetes-sigs/kubespray/blob/master/docs/getting-started.md#adding-nodes
+
+WARNING: not tested yet!
+
+Run the following command in your kubespray clone:
+```bash
+ansible-playbook -i inventory/mycluster/hosts.yml remove-node.yml -b -v  --private-key=~/.ssh/id_rsa  --extra-vars "node=server3,server4"
 ```
 
 ## ClusterIP vs. NodePort
