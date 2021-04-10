@@ -6228,6 +6228,8 @@ ceph osd status
 
 ## Dynamic volume provisioning with OpenEBS Mayastor
 
+WARNING: OpenEBS Mayastor is beta software and does not support Velero backups yet (https://velero.io/).
+
 Mayastor leverages NVMe drives and NVMe over Fabric (including NVMe over TCP) to offer
 a replicated storage and good performances on bare metal clusters.
 
@@ -6239,6 +6241,8 @@ On top of that Mayastor requires at least 1 GB of Huge Pages in RAM.
 Disclaimer: if you only have a 1 GbE network, it is probably useless since NVMe drives are so much faster than network :-).
 
 OpenEBS Mayastor introduction video: https://youtu.be/EpDxWwiQp3Q
+
+Note: The OpenEBS team is extremely friendly and helpful on Slack (Kubernetes slack, #openebs channel)
 
 ### Benchmark disks and network
 
