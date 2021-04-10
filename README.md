@@ -162,6 +162,7 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [Deploy a test application](#deploy-a-test-application)
     + [Reducing the CPU limits of Mayastor](#reducing-the-cpu-limits-of-mayastor)
     + [Trying to get NVMe over Fabrics working](#trying-to-get-nvme-over-fabrics-working)
+  * [Dynamic Local PV provisioning with OpenEBS](#dynamic-local-pv-provisioning-with-openebs)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -6847,4 +6848,50 @@ ansible -b k8s -m community.general.parted -a "device=/dev/nvme0n1 number=2 stat
 ```bash
 ansible -b k8s -m community.general.parted -a "device=/dev/nvme0n1 number=2 state=absent"
 ansible -b k8s -m community.general.parted -a "device=/dev/nvme0n1 number=1 state=absent"
+```
+
+## Dynamic Local PV provisioning with OpenEBS
+
+Local PVs are special volumes that are guaranteed to be on the same node as the pod requesting it.
+Unlike Hostpath PVs, Kubernetes knows that a Local PV is on the node, so it won't move your pod away
+from the node.
+
+Those PV are (only?) useful for applications that deal with data replication and high-availability by themselves. 
+Elasticsearch might be a good example: 
+- it will replicate its own data and does not expect the "storage layer" to do it,
+- if an Elasticsearch pod goes down then Elasticsearch can keep on running anyway.
+
+Add the OpenEBS Dynamic LocalPV Provisioner chart repo:
+```bash
+helm repo add openebs-localpv https://openebs.github.io/dynamic-localpv-provisioner
+```
+Run helm repo update:
+```bash
+helm repo update
+```
+
+Install the OpenEBS Dynamic LocalPV Provisioner chart (base path for volumes will be ``/var/openebs/local``):
+```bash
+helm install openebs-localpv openebs-localpv/localpv-provisioner -n openebs
+```
+
+For a different base path you can use the ``localpv.basePath`` chart parameter.
+The installation command should look like (not 100% sure):
+```bash
+helm install openebs-localpv --set localpv.basePath=/mnt/elsewhere openebs-localpv/localpv-provisioner -n openebs
+```
+
+Then you can write PVCs like this:
+```yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: local-hostpath-pvc
+spec:
+  storageClassName: openebs-hostpath
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5G
 ```
