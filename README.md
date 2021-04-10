@@ -636,6 +636,12 @@ kubectl get pods -o wide
 
 Official documentation: https://github.com/kubernetes-sigs/kubespray/blob/master/docs/getting-started.md#adding-nodes
 
+You're probably doing this quite some time after your first install, so remember to read the
+[Install with kubespray](#install-with-kubespray) paragraph once again to make sure that:
+- your new machine is ready for Ansible
+- IPv4 forwarding is setup on the new machine
+- your Ansible installation is always OK (Jinja version, netaddr python package...)
+
 Open the ``inventory/mycluster/hosts.yaml`` generated during the install.
 It should look like this:
 ```yaml
@@ -718,7 +724,7 @@ all:
     calico-rr:
       hosts: {}
 ```
-Then run the following command in your kubespray clone:
+Finally run the following command in your kubespray clone:
 ```bash
 ansible-playbook -i inventory/mycluster/hosts.yaml  scale.yml -b -v --private-key=~/.ssh/id_rsa
 ```
