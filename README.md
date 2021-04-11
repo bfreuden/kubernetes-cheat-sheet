@@ -46,6 +46,7 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [Deployment](#deployment)
   * [Namespaces](#namespaces)
   * [Node Selectors](#node-selectors)
+  * [Schedule a pod on a specific node](#schedule-a-pod-on-a-specific-node)
   * [PodNodeSelector Admission Control Plugin](#podnodeselector-admission-control-plugin)
   * [DaemonSets](#daemonsets)
   * [Jobs and cronjobs](#jobs-and-cronjobs)
@@ -1491,6 +1492,20 @@ kubectl delete deploy nginx-deploy
 To remove the label on the node:
 ```bash
 kubectl label node node2 demoserver-
+```
+
+## Schedule a pod on a specific node
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  nodeName: server2 # schedule pod to specific node
+  containers:
+  - name: nginx
+    image: nginx
 ```
 
 ## PodNodeSelector Admission Control Plugin
@@ -6856,6 +6871,9 @@ ansible -b k8s -m community.general.parted -a "device=/dev/nvme0n1 number=1 stat
 
 ## Dynamic Local PV provisioning with OpenEBS
 
+Oficial doc of Local PV: https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/
+Official doc of OpenEBS Local PV: https://openebs.github.io/dynamic-localpv-provisioner/
+
 Local PVs are special volumes that are guaranteed to be on the same node as the pod requesting it.
 Unlike Hostpath PVs, Kubernetes knows that a Local PV is on the node, so it won't move your pod away
 from the node.
@@ -6880,9 +6898,15 @@ helm install openebs-localpv openebs-localpv/localpv-provisioner -n openebs
 ```
 
 For a different base path you can use the ``localpv.basePath`` chart parameter.
-The installation command should look like (not 100% sure):
+The installation command should look like this:
 ```bash
-helm install openebs-localpv --set localpv.basePath=/mnt/elsewhere openebs-localpv/localpv-provisioner -n openebs
+helm install openebs-localpv --set localpv.basePath=/mnt/data/openebs/local openebs-localpv/localpv-provisioner -n openebs
+```
+But at the time of writing it does not work. So generate the manifest, edit it and apply it:
+```bash
+helm template openebs-localpv openebs-localpv/localpv-provisioner -n openebs > openebs-localpv.yaml
+sed -i s,/var/openebs/local,/mnt/data/openebs/local,g openebs-localpv.yaml
+kubectl -n openebs apply -f openebs-localpv.yaml
 ```
 
 Then you can write PVCs like this:
@@ -6898,4 +6922,9 @@ spec:
   resources:
     requests:
       storage: 5G
+```
+
+Uninstall:
+```bash
+helm -n openebs uninstall openebs-localpv
 ```
