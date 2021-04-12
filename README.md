@@ -6872,7 +6872,7 @@ ansible -b k8s -m community.general.parted -a "device=/dev/nvme0n1 number=1 stat
 ## Dynamic Local PV provisioning with OpenEBS
 
 Oficial doc of Local PV: https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/
-Official doc of OpenEBS Local PV: https://openebs.github.io/dynamic-localpv-provisioner/
+Official doc of OpenEBS Local PV helm chart: https://openebs.github.io/dynamic-localpv-provisioner/
 
 Local PVs are special volumes that are guaranteed to be on the same node as the pod requesting it.
 Unlike Hostpath PVs, Kubernetes knows that a Local PV is on the node, so it won't move your pod away
@@ -6882,6 +6882,7 @@ Those PV are (only?) useful for applications that deal with data replication and
 Elasticsearch might be a good example: 
 - it will replicate its own data and does not expect the "storage layer" to do it,
 - if an Elasticsearch pod goes down then Elasticsearch can keep on running anyway.
+See 'Use Cases' paragraph: https://docs.openebs.io/docs/next/localpv.html
 
 Add the OpenEBS Dynamic LocalPV Provisioner chart repo:
 ```bash
@@ -6892,17 +6893,13 @@ Run helm repo update:
 helm repo update
 ```
 
-Install the OpenEBS Dynamic LocalPV Provisioner chart (base path for volumes will be ``/var/openebs/local``):
+Install the OpenEBS Dynamic LocalPV Provisioner chart (default base path for volumes will be ``/var/openebs/local``):
 ```bash
 helm install openebs-localpv openebs-localpv/localpv-provisioner -n openebs
 ```
 
-For a different base path you can use the ``localpv.basePath`` chart parameter.
-The installation command should look like this:
-```bash
-helm install openebs-localpv --set localpv.basePath=/mnt/data/openebs/local openebs-localpv/localpv-provisioner -n openebs
-```
-But at the time of writing it does not work. So generate the manifest, edit it and apply it:
+At the time of writing, there is no chart parameter allowing to set the default base path for volumes (see https://kubernetes.slack.com/archives/CUAKPFU78/p1618156947021900). 
+As a workaround generate the manifest, edit it and apply it:
 ```bash
 helm template openebs-localpv openebs-localpv/localpv-provisioner -n openebs > openebs-localpv.yaml
 sed -i s,/var/openebs/local,/mnt/data/openebs/local,g openebs-localpv.yaml
