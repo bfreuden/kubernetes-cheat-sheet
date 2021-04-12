@@ -6898,8 +6898,13 @@ Install the OpenEBS Dynamic LocalPV Provisioner chart (default base path for vol
 helm install openebs-localpv openebs-localpv/localpv-provisioner -n openebs
 ```
 
-At the time of writing, there is no chart parameter allowing to set the default base path for volumes (see https://kubernetes.slack.com/archives/CUAKPFU78/p1618156947021900). 
-As a workaround generate the manifest, edit it and apply it:
+If you want to change the default location of volumes, run (not tested!):
+```bash
+helm install openebs-localpv --set hostpathClass.basePath=/mnt/data/openebs/local openebs-localpv/localpv-provisioner -n openebs
+```
+
+At the time of writing the documentation was out-of-date and did not mention this ``hostpathClass.basePath`` parameter 
+(see https://kubernetes.slack.com/archives/CUAKPFU78/p1618156947021900) so, as a workaround, I did this (generate the manifest, edit it and apply it):
 ```bash
 helm template openebs-localpv openebs-localpv/localpv-provisioner -n openebs > openebs-localpv.yaml
 sed -i s,/var/openebs/local,/mnt/data/openebs/local,g openebs-localpv.yaml
