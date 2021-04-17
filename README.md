@@ -1,16 +1,18 @@
 
 This is a Kubernetes cheat sheet.
 
-Official documentation:
+Official documentation: https://kubernetes.io/fr/docs/home/
 
-https://kubernetes.io/fr/docs/home/
+Official cheat sheet: https://kubernetes.io/docs/reference/kubectl/cheatsheet/
 
-A huge YouTube Kubernetes playlist and a huge **thank you** to the author of the playlist (this cheat sheet is based on this great content):
+A huge YouTube Kubernetes playlist and a huge **thank you** to the author of the playlist (this cheat sheet is mostly based on this great content):
 
 https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
+
 - [Kubectl](#kubectl)
   * [Installation](#installation)
   * [Setup bash completion](#setup-bash-completion)
+  * [Setup Krew](#setup-krew)
 - [Minikube](#minikube)
 - [Microk8s](#microk8s)
 - [K8s with vagrant](#k8s-with-vagrant)
@@ -211,6 +213,81 @@ echo 'source <(kubectl completion bash)' >>~/.bashrc
 kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null
 ```
 
+## Setup Krew
+
+Krew is a plugin manager for kubectl. It is optional. 
+
+Official documentation: https://krew.sigs.k8s.io/docs/
+
+List of plugins: https://krew.sigs.k8s.io/plugins/
+
+Some of them seem to be nice (and/or highly starred on github):
+- cert-manager: Manage cert-manager resources inside your cluster
+- ctx: Switch between contexts in your kubeconfig
+- ns: Switch between Kubernetes namespaces
+- df-pv: Show disk usage (like unix df) for persistent volumes
+- flame: Generate CPU flame graphs from pods
+- graph: Visualize Kubernetes resources and relationships
+- images: Show container images used in the cluster
+- kubesec-scan: Scan Kubernetes resources with kubesec.io
+- pexec: Execute process with privileges in a pod
+- pod-lens: Show pod-related resources
+- reap: Delete unused Kubernetes resources.
+- tail: Stream logs from multiple pods and containers using simple, dynamic source selection.
+- unused-volumes: List unused PVCs
+- view-cert: View certificate information stored in secrets
+- view-secret: Decode Kubernetes secrets
+- view-utilization: Shows cluster cpu and memory utilization
+- who-can: Shows who has RBAC permissions to access Kubernetes resources
+- whoami: Show the subject that's currently authenticated as.
+
+Make sure git is installed:
+```bash
+sudo apt install git
+```
+
+For Bash and ZSH shells, run:
+```bash
+(
+  set -x; cd "$(mktemp -d)" &&
+  OS="$(uname | tr '[:upper:]' '[:lower:]')" &&
+  ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')" &&
+  curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew.tar.gz" &&
+  tar zxvf krew.tar.gz &&
+  KREW=./krew-"${OS}_${ARCH}" &&
+  "$KREW" install krew
+)
+```
+
+Add the $HOME/.krew/bin directory to your PATH environment variable. To do this, update your .bashrc or .zshrc file and append the following line: 
+```bash
+export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+```
+Restart your shell.
+
+List installed plugins:
+```bash
+kubectl krew list
+```
+Search plugins:
+```bash
+kubectl krew search whoami
+```
+```text
+NAME    DESCRIPTION                                         INSTALLED
+whoami  Show the subject that's currently authenticated...  no
+```
+Install plugin:
+```bash
+kubectl krew install whoami
+```
+Use the plugin:
+```bash
+kubectl whoami
+```
+```text
+kubecfg:certauth:admin
+```
 
 # Minikube
 
