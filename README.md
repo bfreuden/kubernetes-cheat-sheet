@@ -229,7 +229,8 @@ Some of them seem to be nice (and/or highly starred on github):
 - flame: Generate CPU flame graphs from pods
 - graph: Visualize Kubernetes resources and relationships
 - images: Show container images used in the cluster
-- kubesec-scan: Scan Kubernetes resources with kubesec.io
+- kubesec-scan: Scan Kubernetes resources with kubesec.io 
+- node-restart: Restart cluster nodes sequentially and gracefully
 - pexec: Execute process with privileges in a pod
 - pod-lens: Show pod-related resources
 - reap: Delete unused Kubernetes resources.
