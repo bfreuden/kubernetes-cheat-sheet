@@ -166,6 +166,9 @@ https://www.youtube.com/playlist?list=PL34sAs7_26wNBRWM6BDhnonoA5FMERax0
     + [Reducing the CPU limits of Mayastor](#reducing-the-cpu-limits-of-mayastor)
     + [Trying to get NVMe over Fabrics working](#trying-to-get-nvme-over-fabrics-working)
   * [Dynamic Local PV provisioning with OpenEBS](#dynamic-local-pv-provisioning-with-openebs)
+  * [MinIO](#minio)
+    + [Prerequisites](#prerequisites)
+    + [Install MinIO](#install-minio)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -6956,11 +6959,23 @@ Local PVs are special volumes that are guaranteed to be on the same node as the 
 Unlike Hostpath PVs, Kubernetes knows that a Local PV is on the node, so it won't move your pod away
 from the node.
 
-Those PV are (only?) useful for applications that deal with data replication and high-availability by themselves. 
-Elasticsearch might be a good example: 
+Those PV are (only?) useful for applications that deal with data replication and high-availability by themselves.
+Elasticsearch might be a good example:
 - it will replicate its own data and does not expect the "storage layer" to do it,
 - if an Elasticsearch pod goes down then Elasticsearch can keep on running anyway.
-See 'Use Cases' paragraph: https://docs.openebs.io/docs/next/localpv.html
+  See 'Use Cases' paragraph: https://docs.openebs.io/docs/next/localpv.html
+
+### Prerequisites
+
+I'm not sure you need the iSCSI client installed. But just in case:
+```bash
+ansible k8s -b -m package -a "name=open-iscsi state=present"
+ansible k8s -b -m service -a "name=iscsid enabled=yes state=started"
+```
+
+You need Helm 3: see [Installing Helm](#installing-helm)
+
+### Deploy OpenEBS
 
 Add the OpenEBS Dynamic LocalPV Provisioner chart repo:
 ```bash
@@ -7008,3 +7023,172 @@ Uninstall:
 ```bash
 helm -n openebs uninstall openebs-localpv
 ```
+
+
+## MinIO
+
+MinIO is a high performance, distributed object storage system described as: open source, S3 compatible, enterprise hardened and really, really fast.
+
+Official doc: https://min.io/
+
+Installation guide: https://docs.min.io/minio/k8s/
+
+OpenEBS notes: https://docs.openebs.io/docs/next/minio.html
+
+MinIO operator: https://github.com/minio/operator
+
+### Prerequisites
+
+Both the Operator and Plugin require Kubernetes 1.17.0 or later.
+
+It requires a minimum of 4 nodes to setup MinIO in distributed mode.
+I read that 4 disks might actually be enough.
+The MinIO operator has a ``--enable-host-sharing`` option to allow single-node installations.
+
+You need krew: see [Setup Krew](#setup-krew)
+
+You also need to think about the storage class you'll be using.
+
+The StorageClass **must** have volumeBindingMode set to ``WaitForFirstConsumer``.
+
+In this doc we'll be using OpenEBS Local PV hostpath volumes since MinIO ensures replication by itself: see [Dynamic Local PV provisioning with OpenEBS](#dynamic-local-pv-provisioning-with-openebs)
+
+MinIO strongly recommends using locally-attached storage to maximize performance and throughput:
+https://docs.min.io/minio/k8s/tutorials/deploy-minio-tenant.html#configure-the-persistent-volumes
+
+OpenEBS is mentioned as well:
+https://github.com/minio/operator#local-persistent-volumes
+
+You also need to think about the certificates: https://github.com/minio/operator/blob/master/docs/tls.md
+
+In this doc we'll disable https (at least for a first run).
+
+### Install MinIO
+
+Install the plugin:
+```bash
+kubectl krew update
+kubectl krew install minio
+```
+
+Initialize the operator:
+```bash
+kubectl minio init
+```
+```text
+namespace/minio-operator created
+serviceaccount/minio-operator created
+clusterrole.rbac.authorization.k8s.io/minio-operator-role created
+clusterrolebinding.rbac.authorization.k8s.io/minio-operator-binding created
+customresourcedefinition.apiextensions.k8s.io/tenants.minio.min.io created
+service/operator created
+deployment.apps/minio-operator created
+serviceaccount/console-sa created
+clusterrole.rbac.authorization.k8s.io/console-sa-role created
+clusterrolebinding.rbac.authorization.k8s.io/console-sa-binding created
+configmap/console-env created
+service/console created
+deployment.apps/console created
+-----------------
+
+To open Operator UI, start a port forward using this command:
+
+kubectl minio proxy -n minio-operator 
+
+-----------------
+
+```
+List MinIO pods:
+```bash
+kubectl -n minio-operator get pods
+```
+```text
+NAME                              READY   STATUS    RESTARTS   AGE
+console-6899978d9f-24lhz          1/1     Running   0          5m1s
+minio-operator-86b96f9bf9-5v46c   1/1     Running   0          5m1s
+```
+Create a namespace for the tenant:
+```bash
+kubectl create ns minio-tenant-1
+```
+
+Create a new tenant (toy cluster of 4 servers with 1 disk each here):
+```bash
+kubectl minio tenant create minio-tenant-1 \
+      --servers 4                             \
+      --volumes 4                             \
+      --capacity 100Gi                        \
+      --namespace minio-tenant-1              \
+      --storage-class openebs-hostpath 
+```
+```text
+Tenant 'minio-tenant-1' created in 'minio-tenant-1' Namespace
+
+  Username: admin 
+  Password: b35bc691-9a5d-4beb-a64a-b48d7c31cc58 
+  Note: Copy the credentials to a secure location. MinIO will not display these again.
+
++-------------+------------------------+----------------+--------------+--------------+
+| APPLICATION | SERVICE NAME           | NAMESPACE      | SERVICE TYPE | SERVICE PORT |
++-------------+------------------------+----------------+--------------+--------------+
+| MinIO       | minio                  | minio-tenant-1 | ClusterIP    | 443          |
+| Console     | minio-tenant-1-console | minio-tenant-1 | ClusterIP    | 9443         |
++-------------+------------------------+----------------+--------------+--------------+
+```
+Save the password!
+You can get it later with (requires ``kubectl krew install view-secret``):
+```bash
+kubectl view-secret -n minio-tenant-1 minio-tenant-1-console-secret -a
+```
+
+Wait for everything to be up and running:
+```bash
+kubectl get all --namespace minio-tenant-1
+```
+```text
+NAME                                          READY   STATUS    RESTARTS   AGE
+pod/minio-tenant-1-console-6cd9c557fd-2zwf9   1/1     Running   0          3m17s
+pod/minio-tenant-1-console-6cd9c557fd-4lvfg   1/1     Running   0          3m17s
+pod/minio-tenant-1-ss-0-0                     1/1     Running   0          4m18s
+pod/minio-tenant-1-ss-0-1                     1/1     Running   0          4m18s
+pod/minio-tenant-1-ss-0-2                     1/1     Running   0          4m18s
+pod/minio-tenant-1-ss-0-3                     1/1     Running   0          4m18s
+
+NAME                             TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+service/minio                    ClusterIP   10.233.33.155   <none>        443/TCP    7m18s
+service/minio-tenant-1-console   ClusterIP   10.233.56.132   <none>        9443/TCP   3m17s
+service/minio-tenant-1-hl        ClusterIP   None            <none>        9000/TCP   7m18s
+
+NAME                                     READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/minio-tenant-1-console   2/2     2            2           3m17s
+
+NAME                                                DESIRED   CURRENT   READY   AGE
+replicaset.apps/minio-tenant-1-console-6cd9c557fd   2         2         2       3m17s
+
+NAME                                   READY   AGE
+statefulset.apps/minio-tenant-1-ss-0   4/4     4m18s
+```
+Check PVCs are bound:
+```bash
+kubectl get all --namespace minio-tenant-1
+```
+```text
+NAME                      STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS       AGE
+0-minio-tenant-1-ss-0-0   Bound    pvc-313c6e7c-5312-4c09-b205-26df21aa9890   25Gi       RWO            openebs-hostpath   11m
+0-minio-tenant-1-ss-0-1   Bound    pvc-20a23199-a288-48ef-a40e-93bfa1f7bc92   25Gi       RWO            openebs-hostpath   11m
+0-minio-tenant-1-ss-0-2   Bound    pvc-46903c9f-ed68-42bc-a9ec-64eb5e91ba24   25Gi       RWO            openebs-hostpath   11m
+0-minio-tenant-1-ss-0-3   Bound    pvc-0e816b80-a75f-420b-ae7d-154dcd0918b9   25Gi       RWO            openebs-hostpath   11m
+```
+
+Then we want to connect to the console.
+Since we don't have any ingress or load-balancer yet, let just do a port-forward:
+```bash
+kubectl port-forward service/minio-tenant-1-console 9443:9443 --namespace minio-tenant-1
+```
+
+Browse to https://localhost:9443/ and connect with ``admin`` (as Access Key) and ``b35bc691-9a5d-4beb-a64a-b48d7c31cc58`` (as secret key).
+
+Then you can create buckets, upload files, etc...
+
+
+
